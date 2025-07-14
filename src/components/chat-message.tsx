@@ -13,21 +13,21 @@ const ReasoningShimmer = memo(function ReasoningShimmer({ content, tokens, isCom
   return (
     <div className="bg-blue-50 rounded text-sm text-blue-700 mb-2 p-2">
       <div 
-        className="flex items-center gap-2 cursor-pointer hover:bg-blue-100 rounded p-1 -m-1"
+        className="flex items-center gap-2 cursor-pointer hover:bg-blue-100 rounded p-1 -m-1 min-w-0"
         onClick={() => setIsCollapsed(!isCollapsed)}
       >
         <ChevronDown 
-          className={`w-3 h-3 text-blue-600 transition-transform duration-200 ${isCollapsed ? '-rotate-90' : ''}`} 
+          className={`w-3 h-3 text-blue-600 transition-transform duration-200 flex-shrink-0 ${isCollapsed ? '-rotate-90' : ''}`} 
         />
-        <div className="flex space-x-1">
+        <div className="flex space-x-1 flex-shrink-0">
           <div className={`w-1 h-1 bg-blue-400 rounded-full ${!isComplete ? 'animate-pulse' : ''}`}></div>
           <div className={`w-1 h-1 bg-blue-400 rounded-full ${!isComplete ? 'animate-pulse' : ''}`} style={{ animationDelay: '0.2s' }}></div>
           <div className={`w-1 h-1 bg-blue-400 rounded-full ${!isComplete ? 'animate-pulse' : ''}`} style={{ animationDelay: '0.4s' }}></div>
         </div>
-        <span className="text-xs font-semibold">{content}</span>
-        {tokens !== undefined && <span className="text-xs text-blue-500 ml-auto">{tokens} tokens</span>}
+        <span className="text-xs font-semibold truncate flex-1 min-w-0">{content}</span>
+        {tokens !== undefined && <span className="text-xs text-blue-500 ml-auto flex-shrink-0">{tokens} tokens</span>}
       </div>
-      {children && !isCollapsed && <div className="mt-2 pl-4 border-l-2 border-blue-200">{children}</div>}
+      {children && !isCollapsed && <div className="mt-2 pl-2 sm:pl-4 border-l-2 border-blue-200">{children}</div>}
     </div>
   );
 });
@@ -381,7 +381,7 @@ const MarkdownRenderer = memo(function MarkdownRenderer({
   isStreaming?: boolean;
 }) {
   return (
-    <div className="prose prose-sm prose-neutral max-w-none prose-headings:font-semibold prose-headings:text-gray-900 prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline prose-code:text-blue-600 prose-code:bg-blue-50 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-code:font-medium prose-pre:bg-gray-900 prose-pre:text-gray-100 prose-blockquote:border-l-blue-500 prose-blockquote:bg-blue-50 prose-blockquote:text-blue-900">
+    <div className="prose prose-sm prose-neutral max-w-none break-words prose-headings:font-semibold prose-headings:text-gray-900 prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline prose-code:text-blue-600 prose-code:bg-blue-50 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-code:font-medium prose-code:break-words prose-pre:bg-gray-900 prose-pre:text-gray-100 prose-pre:overflow-x-auto prose-pre:text-sm prose-blockquote:border-l-blue-500 prose-blockquote:bg-blue-50 prose-blockquote:text-blue-900">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         // Skip some heavy processing during active streaming for very long content
@@ -420,25 +420,25 @@ export const ChatMessage = memo(function ChatMessage({ message, isStreaming = fa
       "group w-full text-gray-800 border-b border-gray-100",
       isUser ? "bg-gray-50" : "bg-white"
     )}>
-      <div className="flex gap-4 p-6 max-w-full mx-auto">
+      <div className="flex gap-3 sm:gap-4 p-4 sm:p-6 max-w-full mx-auto">
         {/* Avatar */}
         <div className="flex-shrink-0">
           <div className={cn(
-            "w-8 h-8 rounded-full flex items-center justify-center",
+            "w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center",
             isUser
               ? "bg-blue-600 text-white"
               : "bg-green-600 text-white"
           )}>
             {isUser ? (
-              <User className="w-4 h-4" />
+              <User className="w-3 h-3 sm:w-4 sm:h-4" />
             ) : (
-              <Bot className="w-4 h-4" />
+              <Bot className="w-3 h-3 sm:w-4 sm:h-4" />
             )}
           </div>
         </div>
 
         {/* Message Content */}
-        <div className="flex-1 space-y-2 overflow-hidden">
+        <div className="flex-1 space-y-2 min-w-0">
           <div className="flex items-center gap-2">
             <span className="font-semibold text-sm">
               {isUser ? 'You' : 'Travel Assistant'}
@@ -453,12 +453,12 @@ export const ChatMessage = memo(function ChatMessage({ message, isStreaming = fa
           <div className="prose prose-sm max-w-none prose-neutral">
             {isUser ? (
               // User messages stay as plain text
-              <div className="text-gray-900 leading-relaxed whitespace-pre-wrap">
+              <div className="text-gray-900 leading-relaxed whitespace-pre-wrap break-words">
                 {message.content}
               </div>
             ) : (
               // Assistant messages with tool status and markdown rendering
-              <div className="text-gray-900 leading-relaxed">
+              <div className="text-gray-900 leading-relaxed break-words">
                 {parsedContent.map((element, index) => {
                   if (element.type === 'status') {
                     return <StatusMessage key={index} content={element.content} />;

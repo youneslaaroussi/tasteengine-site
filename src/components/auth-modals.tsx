@@ -16,22 +16,28 @@ import { User, Mail, Lock, LogIn } from 'lucide-react';
 
 interface AuthModalsProps {
   children: React.ReactNode;
+  onOpenChange?: (open: boolean) => void;
 }
 
-export function LoginModal({ children }: AuthModalsProps) {
+export function LoginModal({ children, onOpenChange }: AuthModalsProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+
+  const handleOpenChange = (open: boolean) => {
+    setIsOpen(open);
+    onOpenChange?.(open);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     // TODO: Implement login logic
     console.log('Login:', { email, password });
-    setIsOpen(false);
+    handleOpenChange(false);
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         {children}
       </DialogTrigger>
@@ -94,12 +100,17 @@ export function LoginModal({ children }: AuthModalsProps) {
   );
 }
 
-export function SignupModal({ children }: AuthModalsProps) {
+export function SignupModal({ children, onOpenChange }: AuthModalsProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+
+  const handleOpenChange = (open: boolean) => {
+    setIsOpen(open);
+    onOpenChange?.(open);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -109,11 +120,11 @@ export function SignupModal({ children }: AuthModalsProps) {
       return;
     }
     console.log('Signup:', { name, email, password });
-    setIsOpen(false);
+    handleOpenChange(false);
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         {children}
       </DialogTrigger>
