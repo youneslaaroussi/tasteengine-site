@@ -78,10 +78,24 @@ export async function POST(request: NextRequest) {
                       dataStream.write(`0:${JSON.stringify(statusMarkdown)}\n`);
                     }
                     
-                    else if (data.type === 'thinking') {
-                      // Embed thinking process as special markdown
-                      const thinkingMarkdown = `\n{% thinking "${data.content}" %}\n`;
-                      dataStream.write(`0:${JSON.stringify(thinkingMarkdown)}\n`);
+                    else if (data.type === 'reasoning_start') {
+                      // Handle reasoning as a tool call
+                      activeTools.add('reasoning');
+                      const reasoningStartMarkdown = `\n{% reasoning_start "${data.content}" %}\n`;
+                      dataStream.write(`0:${JSON.stringify(reasoningStartMarkdown)}\n`);
+                    }
+                    
+                    else if (data.type === 'reasoning_progress') {
+                      // Add reasoning progress update
+                      const progressMarkdown = `{% reasoning_progress "${data.content}" ${data.reasoning?.tokens || 0} %}\n`;
+                      dataStream.write(`0:${JSON.stringify(progressMarkdown)}\n`);
+                    }
+                    
+                    else if (data.type === 'reasoning_complete') {
+                      // Complete the reasoning block
+                      activeTools.delete('reasoning');
+                      const reasoningCompleteMarkdown = `{% reasoning_complete "${data.content}" %}\n\n`;
+                      dataStream.write(`0:${JSON.stringify(reasoningCompleteMarkdown)}\n`);
                     }
                     
                     else if (data.type === 'tool_start') {
@@ -107,6 +121,12 @@ export async function POST(request: NextRequest) {
                         activeTools.delete(data.toolName);
                         const toolCompleteMarkdown = `{% ${data.toolName}_complete "${data.content || 'Tool completed'}" %}\n\n`;
                         dataStream.write(`0:${JSON.stringify(toolCompleteMarkdown)}\n`);
+                        
+                        // For flight itinerary tool, also send the structured data
+                        if (data.toolName === 'create_flight_itinerary' && data.data) {
+                          const toolResultData = JSON.stringify(data.data);
+                          dataStream.write(`0:${JSON.stringify(toolResultData)}\n`);
+                        }
                       }
                     }
                     

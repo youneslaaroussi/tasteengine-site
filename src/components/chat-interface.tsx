@@ -5,8 +5,8 @@ import { ChatMessage } from './chat-message';
 import { ChatInput, ChatInputRef } from './chat-input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { useEffect, useRef, useMemo, useCallback, useState } from 'react';
-import { Plane, ChevronDown } from 'lucide-react';
+import { useEffect, useRef, useMemo, useCallback, useState, useImperativeHandle, forwardRef } from 'react';
+import { ChevronDown } from 'lucide-react';
 
 // Move initial messages outside component to prevent recreation on every render
 const INITIAL_MESSAGES = [
@@ -17,8 +17,12 @@ const INITIAL_MESSAGES = [
   },
 ];
 
-export function ChatInterface() {
-  const { messages, input, handleInputChange, handleSubmit, isLoading, stop, setInput } = useChat({
+export interface ChatInterfaceRef {
+  resetChat: () => void;
+}
+
+export const ChatInterface = forwardRef<ChatInterfaceRef>((props, ref) => {
+  const { messages, input, handleInputChange, handleSubmit, isLoading, stop, setInput, setMessages } = useChat({
     api: '/api/chat',
     initialMessages: INITIAL_MESSAGES,
   });
@@ -168,20 +172,35 @@ export function ChatInterface() {
     ));
   }, [messages, isLoading]);
 
-  return (
-    <div className="flex flex-col h-screen bg-white">
-      {/* Header */}
-      <header className="border-b border-gray-200 bg-white">
-        <div className="flex items-center justify-center py-4">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-              <Plane className="w-5 h-5 text-white" />
-            </div>
-            <h1 className="text-xl font-semibold text-gray-900">Travel Assistant</h1>
-          </div>
-        </div>
-      </header>
+  // Reset chat function
+  const resetChat = useCallback(() => {
+    // Stop any ongoing requests
+    stop();
+    
+    // Reset messages to initial state
+    setMessages(INITIAL_MESSAGES);
+    
+    // Clear input
+    setInput('');
+    
+    // Reset scroll position
+    setTimeout(() => {
+      scrollToBottomSmooth();
+    }, 100);
+    
+    // Focus input
+    setTimeout(() => {
+      chatInputRef.current?.focus();
+    }, 200);
+  }, [stop, setMessages, setInput, scrollToBottomSmooth]);
 
+  // Expose resetChat function through ref
+  useImperativeHandle(ref, () => ({
+    resetChat,
+  }));
+
+  return (
+    <div className="flex flex-col h-full bg-white">
       {/* Messages Area */}
       <div className="flex-1 overflow-hidden relative">
         <ScrollArea ref={scrollAreaRef} className="h-full">
@@ -220,4 +239,6 @@ export function ChatInterface() {
       </div>
     </div>
   );
-} 
+});
+
+ChatInterface.displayName = 'ChatInterface'; 
