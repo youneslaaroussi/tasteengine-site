@@ -65,10 +65,7 @@ export const FlightItineraryCard = memo(function FlightItineraryCard({ itinerary
     return <div className="text-red-500 p-4">Error: Missing itinerary data</div>;
   }
 
-  if (!itinerary.summary) {
-    console.error('FlightItineraryCard: itinerary.summary is required');
-    return <div className="text-red-500 p-4">Error: Missing itinerary summary data</div>;
-  }
+  // It's okay if itinerary.summary is missing; we'll simply skip rendering the summary section.
 
   const formatDate = (dateString: string) => {
     try {
@@ -123,6 +120,7 @@ export const FlightItineraryCard = memo(function FlightItineraryCard({ itinerary
 
   // Safe access to summary fields with defaults
   const summary = itinerary.summary || {};
+  const hasSummary = Object.keys(summary).length > 0;
   const totalFlights = summary.totalFlights || 0;
   const totalPrice = summary.totalPrice || 0;
   const currency = summary.currency || 'USD';
@@ -170,29 +168,31 @@ export const FlightItineraryCard = memo(function FlightItineraryCard({ itinerary
         )}
       </div>
 
-      {/* Trip Summary */}
-      <div className="p-6 border-b border-gray-200 bg-gray-50">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="text-center">
-            <div className="text-2xl font-bold text-gray-900">{totalFlights}</div>
-            <div className="text-sm text-gray-600">Flight{totalFlights !== 1 ? 's' : ''}</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-green-600">
-              {formatPrice(totalPrice, currency)}
+      {/* Trip Summary (optional) */}
+      {hasSummary && (
+        <div className="p-6 border-b border-gray-200 bg-gray-50">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-gray-900">{totalFlights}</div>
+              <div className="text-sm text-gray-600">Flight{totalFlights !== 1 ? 's' : ''}</div>
             </div>
-            <div className="text-sm text-gray-600">Total Cost</div>
-          </div>
-          <div className="text-center">
-            <div className="text-sm font-medium text-gray-900">{origins}</div>
-            <div className="text-sm text-gray-600">Origin{origins.includes(',') ? 's' : ''}</div>
-          </div>
-          <div className="text-center">
-            <div className="text-sm font-medium text-gray-900">{destinations}</div>
-            <div className="text-sm text-gray-600">Destination{destinations.includes(',') ? 's' : ''}</div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-green-600">
+                {formatPrice(totalPrice, currency)}
+              </div>
+              <div className="text-sm text-gray-600">Total Cost</div>
+            </div>
+            <div className="text-center">
+              <div className="text-sm font-medium text-gray-900">{origins}</div>
+              <div className="text-sm text-gray-600">Origin{origins.includes(',') ? 's' : ''}</div>
+            </div>
+            <div className="text-center">
+              <div className="text-sm font-medium text-gray-900">{destinations}</div>
+              <div className="text-sm text-gray-600">Destination{destinations.includes(',') ? 's' : ''}</div>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Flights */}
       <div className="p-6">

@@ -175,7 +175,7 @@ function parseToolContent(content: string) {
       let itineraryPayload = null;
 
       // Check if it's a call wrapper structure (call_id: { success: true, itinerary: {...} })
-      const callIds = Object.keys(fullData).filter(key => key.startsWith('call_'));
+      const callIds = Object.keys(fullData).filter(key => key.startsWith('call_') || key.startsWith('toolu_'));
       if (callIds.length > 0) {
         const callData = fullData[callIds[0]];
         if (callData && callData.success && callData.itinerary) {
@@ -478,11 +478,11 @@ export const ChatMessage = memo(function ChatMessage({ message, isStreaming = fa
                           <div className="space-y-2 py-2">
                             {reasoning.tools.map((tool, toolIndex) => {
                               // Special handling for flight itinerary tool within reasoning
-                              if (tool.name === 'create_flight_itinerary' && tool.isComplete && tool.resultData) {
+                              if (tool.name === 'create_flight_itinerary' && tool.isComplete && tool.resultData && tool.resultData.itinerary) {
                                 return (
                                   <div key={`${tool.name}-${toolIndex}`} className="mb-4">
                                     <FlightItineraryCard 
-                                      itinerary={tool.resultData.itinerary || tool.resultData}
+                                      itinerary={tool.resultData.itinerary}
                                       json={tool.resultData.json}
                                     />
                                   </div>
@@ -512,11 +512,11 @@ export const ChatMessage = memo(function ChatMessage({ message, isStreaming = fa
                     const tool = element.content as ToolState;
                     
                     // Special handling for flight itinerary tool
-                    if (tool.name === 'create_flight_itinerary' && tool.isComplete && tool.resultData) {
+                    if (tool.name === 'create_flight_itinerary' && tool.isComplete && tool.resultData && tool.resultData.itinerary) {
                       return (
                         <div key={`${tool.name}-${index}`} className="mb-4">
                           <FlightItineraryCard 
-                            itinerary={tool.resultData.itinerary || tool.resultData}
+                            itinerary={tool.resultData.itinerary}
                             json={tool.resultData.json}
                           />
                         </div>
