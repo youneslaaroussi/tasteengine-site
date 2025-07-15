@@ -10,15 +10,15 @@ import { ClientTimestamp } from './ui/client-timestamp';
 // Compact shimmer component for reasoning
 const ReasoningShimmer = memo(function ReasoningShimmer({ content, tokens, isComplete, children }: { content: string; tokens?: number; isComplete?: boolean; children?: React.ReactNode }) {
   const [isCollapsed, setIsCollapsed] = useState(false);
-  
+
   return (
     <div className="bg-blue-50 rounded text-sm text-blue-700 mb-2 p-2">
-      <div 
+      <div
         className="flex items-center gap-2 cursor-pointer hover:bg-blue-100 rounded p-1 -m-1 min-w-0"
         onClick={() => setIsCollapsed(!isCollapsed)}
       >
-        <ChevronDown 
-          className={`w-3 h-3 text-blue-600 transition-transform duration-200 flex-shrink-0 ${isCollapsed ? '-rotate-90' : ''}`} 
+        <ChevronDown
+          className={`w-3 h-3 text-blue-600 transition-transform duration-200 flex-shrink-0 ${isCollapsed ? '-rotate-90' : ''}`}
         />
         <div className="flex space-x-1 flex-shrink-0">
           <div className={`w-1 h-1 bg-blue-400 rounded-full ${!isComplete ? 'animate-pulse' : ''}`}></div>
@@ -92,25 +92,25 @@ const normalizeItineraryData = (data: any) => {
   // Calculate summary data from flights if not provided
   if (normalized.flights.length > 0) {
     normalized.summary.totalFlights = normalized.flights.length;
-    
+
     // Calculate total price
     if (normalized.summary.totalPrice === 0) {
       normalized.summary.totalPrice = normalized.flights.reduce((sum: number, flight: any) => {
         return sum + (flight.price?.amount || 0);
       }, 0);
     }
-    
+
     // Get currency from first flight if not set
     if (normalized.summary.currency === 'USD' && normalized.flights[0]?.price?.currency) {
       normalized.summary.currency = normalized.flights[0].price.currency;
     }
-    
+
     // Calculate destinations and origins
     if (!normalized.summary.destinations) {
       const destinations = new Set(normalized.flights.map((f: any) => f.destination?.code || f.destination?.city).filter(Boolean));
       normalized.summary.destinations = Array.from(destinations).join(', ');
     }
-    
+
     if (!normalized.summary.origins) {
       const origins = new Set(normalized.flights.map((f: any) => f.origin?.code || f.origin?.city).filter(Boolean));
       normalized.summary.origins = Array.from(origins).join(', ');
@@ -129,7 +129,7 @@ function parseToolContent(content: string) {
   const toolMarkers = new Map<string, Array<{ action: string; text: string; progress?: number }>>();
 
   const parts = content.split(/(\n?\{% [^%]+? %\}\n?)/g).filter(p => p && p.trim());
-  
+
   // This function will find the first valid JSON object in the text
   // and return it along with the rest of the string.
   function extractJsonWithRemainingText(str: string): { json: string | null; remaining: string } {
@@ -167,7 +167,7 @@ function parseToolContent(content: string) {
       return { json: null, remaining: str };
     }
   }
-  
+
   // Look for itinerary data in the content
   const extractItineraryData = (text: string) => {
     try {
@@ -188,7 +188,7 @@ function parseToolContent(content: string) {
           };
         }
       }
-      
+
       // Check if it's a direct itinerary object
       else if (fullData.id && fullData.id.startsWith('itinerary_')) {
         itineraryPayload = {
@@ -196,7 +196,7 @@ function parseToolContent(content: string) {
           json: undefined
         };
       }
-      
+
       // Handle any other structure that might contain itinerary data
       else if (fullData.itinerary) {
         itineraryPayload = {
@@ -204,7 +204,7 @@ function parseToolContent(content: string) {
           json: fullData.json
         };
       }
-      
+
       // If the data looks like it might be an itinerary but doesn't have the expected structure
       else if (fullData.flights || fullData.travelerName || fullData.tripName) {
         itineraryPayload = {
@@ -212,11 +212,11 @@ function parseToolContent(content: string) {
           json: undefined
         };
       }
-      
+
       if (itineraryPayload) {
         return { ...itineraryPayload, remainingText };
       }
-      
+
     } catch (e) {
       console.error('Error parsing itinerary data:', e);
     }
@@ -229,7 +229,7 @@ function parseToolContent(content: string) {
     if (!match) {
       // Check if this text contains itinerary data and separate it from trailing text
       const itineraryExtraction = extractItineraryData(part);
-      
+
       if (itineraryExtraction) {
         const itineraryData = {
           itinerary: itineraryExtraction.itinerary,
@@ -238,7 +238,7 @@ function parseToolContent(content: string) {
 
         // Find the most recent create_flight_itinerary tool and attach the data
         let toolFound = false;
-        
+
         // First check standalone tools in elements array
         for (let i = elements.length - 1; i >= 0; i--) {
           if (elements[i].type === 'tool' && elements[i].content.name === 'create_flight_itinerary') {
@@ -247,7 +247,7 @@ function parseToolContent(content: string) {
             break;
           }
         }
-        
+
         // If not found in standalone tools, check nested tools within reasoning blocks
         if (!toolFound) {
           for (let i = elements.length - 1; i >= 0; i--) {
@@ -264,7 +264,7 @@ function parseToolContent(content: string) {
             }
           }
         }
-        
+
         // If we successfully found and attached the data, push the remaining text separately
         if (toolFound) {
           if (itineraryExtraction.remainingText && itineraryExtraction.remainingText.trim()) {
@@ -273,7 +273,7 @@ function parseToolContent(content: string) {
           continue; // Skip adding the original part with JSON
         }
       }
-      
+
       // If no itinerary was found (or no tool to attach it to), push the original part
       elements.push({ type: 'text', content: part });
       continue;
@@ -283,7 +283,7 @@ function parseToolContent(content: string) {
     const commandParts = fullCommand.trim().split('_');
     const action = commandParts.pop()!;
     const toolName = commandParts.join('_');
-    
+
 
     if (fullCommand === 'status') {
       elements.push({ type: 'status', content: text });
@@ -300,13 +300,13 @@ function parseToolContent(content: string) {
 
     let activeReasoningIndex = -1;
     for (let i = elements.length - 1; i >= 0; i--) {
-        if (elements[i].type === 'reasoning' && !elements[i].content.isComplete) {
-            activeReasoningIndex = i;
-            break;
-        }
+      if (elements[i].type === 'reasoning' && !elements[i].content.isComplete) {
+        activeReasoningIndex = i;
+        break;
+      }
     }
     const activeReasoningState = activeReasoningIndex !== -1 ? elements[activeReasoningIndex].content : null;
-    
+
 
     if (toolName === 'reasoning') {
       if (action === 'start') {
@@ -334,31 +334,31 @@ function parseToolContent(content: string) {
       if (activeReasoningState) { // Nested tool
         let tool = activeReasoningState.tools.find((t: ToolState) => t.name === toolName && !t.isComplete);
         if (action === 'start' && !tool) {
-            activeReasoningState.tools.push({ name: toolName, description: text, progressSteps: [], isComplete: false });
+          activeReasoningState.tools.push({ name: toolName, description: text, progressSteps: [], isComplete: false });
         } else if (tool) {
-            if (action === 'progress') {
-                tool.progressSteps.push({ text, progress: parseInt(progress || '0') });
-            } else if (action === 'complete') {
-                tool.isComplete = true;
-                tool.completeText = text;
-            }
+          if (action === 'progress') {
+            tool.progressSteps.push({ text, progress: parseInt(progress || '0') });
+          } else if (action === 'complete') {
+            tool.isComplete = true;
+            tool.completeText = text;
+          }
         }
       } else { // Standalone tool
         if (action === 'start') {
           standaloneTools.set(toolName, { name: toolName, description: text, progressSteps: [], isComplete: false });
         } else {
           let tool = standaloneTools.get(toolName);
-          
+
           // If tool doesn't exist but we have markers for it, reconstruct it from markers
           if (!tool && toolMarkers.has(toolName)) {
             const markers = toolMarkers.get(toolName)!;
             const startMarker = markers.find(m => m.action === 'start');
             if (startMarker) {
-              tool = { 
-                name: toolName, 
-                description: startMarker.text, 
-                progressSteps: [], 
-                isComplete: false 
+              tool = {
+                name: toolName,
+                description: startMarker.text,
+                progressSteps: [],
+                isComplete: false
               };
               // Apply all progress markers
               markers.filter(m => m.action === 'progress').forEach(m => {
@@ -367,7 +367,7 @@ function parseToolContent(content: string) {
               standaloneTools.set(toolName, tool);
             }
           }
-          
+
           if (tool) {
             if (action === 'progress') {
               tool.progressSteps.push({ text, progress: parseInt(progress || '0') });
@@ -510,14 +510,13 @@ export const ChatMessage = memo(function ChatMessage({ message, isStreaming = fa
                               if (tool.name === 'create_flight_itinerary' && tool.isComplete && tool.resultData && tool.resultData.itinerary) {
                                 return (
                                   <div key={`${tool.name}-${toolIndex}`} className="mb-4">
-                                    <FlightItineraryCard 
+                                    <FlightItineraryCard
                                       itinerary={tool.resultData.itinerary}
-                                      json={tool.resultData.json}
                                     />
                                   </div>
                                 );
                               }
-                              
+
                               // Default tool progress rendering
                               return (
                                 <ToolProgress
@@ -539,19 +538,18 @@ export const ChatMessage = memo(function ChatMessage({ message, isStreaming = fa
 
                   if (element.type === 'tool') {
                     const tool = element.content as ToolState;
-                    
+
                     // Special handling for flight itinerary tool
                     if (tool.name === 'create_flight_itinerary' && tool.isComplete && tool.resultData && tool.resultData.itinerary) {
                       return (
                         <div key={`${tool.name}-${index}`} className="mb-4">
-                          <FlightItineraryCard 
+                          <FlightItineraryCard
                             itinerary={tool.resultData.itinerary}
-                            json={tool.resultData.json}
                           />
                         </div>
                       );
                     }
-                    
+
                     return (
                       <ToolProgress
                         key={`${tool.name}-${index}`}
