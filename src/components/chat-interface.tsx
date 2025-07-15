@@ -10,6 +10,7 @@ import { useEffect, useRef, useMemo, useCallback, useState, useImperativeHandle,
 import { ChevronDown } from 'lucide-react';
 import { useChatHistory } from '@/hooks/use-chat-history';
 import { ChatSession } from '@/types/chat-history';
+import { trackChatEvent, trackChatHistoryEvent, trackUserEngagement } from '@/lib/gtag';
 
 // Move initial messages outside component to prevent recreation on every render
 const INITIAL_MESSAGES = [
@@ -190,6 +191,13 @@ export const ChatInterface = forwardRef<ChatInterfaceRef>((props, ref) => {
   const handlePromptClick = useCallback((prompt: string) => {
     setInput(prompt);
     
+    // Track prompt card click
+    trackChatEvent('prompt_submit', {
+      message_type: 'prompt_card',
+      message_length: prompt.length,
+      session_id: currentSession?.id,
+    });
+    
     // Auto-submit the prompt after a brief delay
     setTimeout(() => {
       if (chatInputRef.current) {
@@ -200,7 +208,7 @@ export const ChatInterface = forwardRef<ChatInterfaceRef>((props, ref) => {
         handleSubmit(mockEvent);
       }
     }, 100);
-  }, [setInput, handleSubmit]);
+  }, [setInput, handleSubmit, currentSession?.id]);
 
   // Memoize the messages rendering to prevent unnecessary re-renders
   const renderedMessages = useMemo(() => {
@@ -217,6 +225,9 @@ export const ChatInterface = forwardRef<ChatInterfaceRef>((props, ref) => {
   const resetChat = useCallback(() => {
     // Stop any ongoing requests
     stop();
+    
+    // Track new chat event
+    trackChatHistoryEvent('new_chat');
     
     // Reset messages to initial state
     setMessages(INITIAL_MESSAGES);
@@ -242,6 +253,9 @@ export const ChatInterface = forwardRef<ChatInterfaceRef>((props, ref) => {
   const loadSession = useCallback((session: ChatSession) => {
     // Stop any ongoing requests
     stop();
+    
+    // Track session load event
+    trackChatHistoryEvent('load_session');
     
     // Load session in history
     loadSessionFromHistory(session.id);
@@ -292,7 +306,10 @@ export const ChatInterface = forwardRef<ChatInterfaceRef>((props, ref) => {
         {!isAtBottom && (
           <div className="absolute bottom-4 right-4">
             <Button
-              onClick={scrollToBottomSmooth}
+              onClick={() => {
+                trackUserEngagement('scroll_to_bottom', 'chat_interface');
+                scrollToBottomSmooth();
+              }}
               size="sm"
               className="rounded-full w-10 h-10 p-0 bg-blue-600 hover:bg-blue-700 text-white shadow-lg"
             >

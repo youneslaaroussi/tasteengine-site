@@ -15,6 +15,7 @@ import { CountrySelector } from './country-selector';
 import { CountryPreloader } from './country-preloader';
 import { ChatHistorySidebar } from './chat-history-sidebar';
 import { ChatSession } from '@/types/chat-history';
+import { trackNavigationEvent, trackUserEngagement } from '@/lib/gtag';
 
 import Image from 'next/image';
 import logo from '@/assets/app-logo.png';
@@ -28,6 +29,7 @@ export function ChatHeader({ onNewChat, onLoadSession }: ChatHeaderProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const handleNewChat = () => {
+    trackNavigationEvent('new_chat_click', 'header');
     onNewChat();
     setIsMenuOpen(false);
   };
@@ -70,7 +72,10 @@ export function ChatHeader({ onNewChat, onLoadSession }: ChatHeaderProps) {
           <div className="w-px h-6 bg-gray-300" />
 
           <Button
-            onClick={onNewChat}
+            onClick={() => {
+              trackNavigationEvent('new_chat_click', 'header_desktop');
+              onNewChat();
+            }}
             variant="outline"
             size="sm"
             className="flex items-center gap-2"
@@ -83,7 +88,10 @@ export function ChatHeader({ onNewChat, onLoadSession }: ChatHeaderProps) {
         {/* Mobile Navigation */}
         <div className="md:hidden flex items-center gap-2">
           <Button
-            onClick={onNewChat}
+            onClick={() => {
+              trackNavigationEvent('new_chat_click', 'header_mobile');
+              onNewChat();
+            }}
             variant="outline"
             size="sm"
             className="flex items-center gap-2"
@@ -92,7 +100,10 @@ export function ChatHeader({ onNewChat, onLoadSession }: ChatHeaderProps) {
             <span className="hidden sm:inline">New Chat</span>
           </Button>
 
-          <Sheet open={isMenuOpen} onOpenChange={setIsMenuOpen}>
+          <Sheet open={isMenuOpen} onOpenChange={(open) => {
+            setIsMenuOpen(open);
+            trackUserEngagement(open ? 'mobile_menu_open' : 'mobile_menu_close', 'header');
+          }}>
             <SheetTrigger asChild>
               <Button variant="ghost" size="sm" className="flex items-center gap-2">
                 <Menu className="w-4 h-4" />

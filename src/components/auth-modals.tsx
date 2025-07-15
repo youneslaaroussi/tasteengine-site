@@ -13,6 +13,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { User, Mail, Lock, LogIn } from 'lucide-react';
+import { trackAuthEvent } from '@/lib/gtag';
 
 interface AuthModalsProps {
   children: React.ReactNode;
@@ -27,10 +28,17 @@ export function LoginModal({ children, onOpenChange }: AuthModalsProps) {
   const handleOpenChange = (open: boolean) => {
     setIsOpen(open);
     onOpenChange?.(open);
+    
+    // Track modal open/close events
+    trackAuthEvent(open ? 'modal_open' : 'modal_close', 'login');
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Track login attempt
+    trackAuthEvent('login_attempt', 'login');
+    
     // TODO: Implement login logic
     console.log('Login:', { email, password });
     handleOpenChange(false);
@@ -110,10 +118,17 @@ export function SignupModal({ children, onOpenChange }: AuthModalsProps) {
   const handleOpenChange = (open: boolean) => {
     setIsOpen(open);
     onOpenChange?.(open);
+    
+    // Track modal open/close events
+    trackAuthEvent(open ? 'modal_open' : 'modal_close', 'signup');
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Track signup attempt
+    trackAuthEvent('signup_attempt', 'signup');
+    
     // TODO: Implement signup logic
     if (password !== confirmPassword) {
       alert('Passwords do not match');

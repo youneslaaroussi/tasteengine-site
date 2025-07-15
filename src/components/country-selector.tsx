@@ -11,6 +11,7 @@ import { Check, ChevronDown, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useCountries } from 'use-react-countries';
+import { trackCountrySelection, trackUserEngagement } from '@/lib/gtag';
 
 interface Country {
   name: string;
@@ -151,6 +152,10 @@ export function CountrySelector({ onCountryChange, variant = 'compact' }: Countr
   const handleCountrySelect = useCallback((country: Country) => {
     setSelectedCountry(country);
     localStorage.setItem('user-country', country.countryCallingCode.replace('+', ''));
+    
+    // Track country selection
+    trackCountrySelection(country.countryCallingCode, country.name);
+    
     onCountryChange?.(country);
     setIsOpen(false);
     setSearchQuery('');
@@ -243,6 +248,7 @@ export function CountrySelector({ onCountryChange, variant = 'compact' }: Countr
             variant="ghost"
             size="sm"
             className="flex items-center gap-2 h-8 px-2 hover:bg-gray-50 rounded-md"
+            onClick={() => trackUserEngagement('open_country_selector', 'header')}
           >
             <img
               src={selectedCountry.flags.svg}
@@ -275,7 +281,12 @@ export function CountrySelector({ onCountryChange, variant = 'compact' }: Countr
                 ref={searchInputRef}
                 placeholder="Search countries..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  if (e.target.value.length > 0) {
+                    trackUserEngagement('search_countries', 'country_selector');
+                  }
+                }}
                 className="pl-10 h-9"
               />
             </div>
@@ -328,23 +339,11 @@ export function useSelectedCountry() {
 
     const initializeCountry = async () => {
       const savedCountryCode = localStorage.getItem('user-country');
-      const defaultCountryCode = savedCountryCode || await detectUserCountry();
-
-      console.log('useSelectedCountry - Detected country code:', defaultCountryCode);
-
-      // Try to find country by mapping country code to name first
-      const mappedCountryName = countryCodeToName[defaultCountryCode];
-      console.log('useSelectedCountry - Mapped country name:', mappedCountryName);
+      const userCallingCode = savedCountryCode || await detectUserCountry();
 
       const country = countries.find((c: any) =>
-        (mappedCountryName && c.name.toLowerCase() === mappedCountryName.toLowerCase()) ||
-        c.countryCallingCode === `+${defaultCountryCode}` ||
-        c.name.toLowerCase().includes(defaultCountryCode.toLowerCase()) ||
-        c.countryCallingCode.replace('+', '') === defaultCountryCode ||
-        c.cca2 === defaultCountryCode
-      ) || countries.find((c) => c.name === 'United States') || countries[0];
-
-      console.log('useSelectedCountry - Selected country:', country);
+        c.countryCallingCode === userCallingCode
+      ) || countries[0];
 
       setSelectedCountry(country);
     };

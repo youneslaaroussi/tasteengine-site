@@ -3,6 +3,7 @@
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Plane, MapPin, Calendar, Users, DollarSign, Clock, TrendingUp, Heart } from 'lucide-react';
+import { trackPromptCardClick, trackUserEngagement } from '@/lib/gtag';
 
 interface PromptCard {
   id: string;
@@ -104,7 +105,10 @@ export function PromptCards({ onPromptClick }: PromptCardsProps) {
           <Card
             key={card.id}
             className="group relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer transform hover:-translate-y-1 bg-white"
-            onClick={() => onPromptClick(card.prompt)}
+            onClick={() => {
+              trackPromptCardClick(card.id, card.title);
+              onPromptClick(card.prompt);
+            }}
           >
             {/* Background Image or Gradient */}
             <div className="relative h-48 overflow-hidden">
@@ -127,7 +131,13 @@ export function PromptCards({ onPromptClick }: PromptCardsProps) {
               )}
               
               {/* Heart Icon */}
-              <div className="absolute top-3 left-3 w-8 h-8 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center group-hover:bg-white/30 transition-colors">
+              <div 
+                className="absolute top-3 left-3 w-8 h-8 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center group-hover:bg-white/30 transition-colors cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  trackUserEngagement('favorite_prompt', card.id);
+                }}
+              >
                 <Heart className="w-4 h-4 text-white" />
               </div>
             </div>
@@ -165,6 +175,7 @@ export function PromptCards({ onPromptClick }: PromptCardsProps) {
                 size="sm"
                 onClick={(e) => {
                   e.stopPropagation();
+                  trackPromptCardClick(card.id, card.title);
                   onPromptClick(card.prompt);
                 }}
               >

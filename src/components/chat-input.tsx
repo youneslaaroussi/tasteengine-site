@@ -2,6 +2,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Send, Square } from 'lucide-react';
 import { KeyboardEvent, useRef, useEffect, useCallback, memo, forwardRef, useImperativeHandle } from 'react';
+import { trackChatEvent, trackUserEngagement } from '@/lib/gtag';
 
 interface ChatInputProps {
   input: string;
@@ -91,6 +92,12 @@ export const ChatInput = memo(forwardRef<ChatInputRef, ChatInputProps>(function 
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       if (input.trim() && !isLoading) {
+        // Track user message submission
+        trackChatEvent('user_message_submit', {
+          message_type: 'user_message',
+          message_length: input.trim().length,
+          input_method: 'keyboard',
+        });
         handleSubmit(e as any);
       }
     }
@@ -119,7 +126,18 @@ export const ChatInput = memo(forwardRef<ChatInputRef, ChatInputProps>(function 
             <Button
               type={isLoading ? "button" : "submit"}
               disabled={(!input.trim() && !isLoading)}
-              onClick={isLoading ? onStop : undefined}
+              onClick={isLoading ? () => {
+                trackUserEngagement('stop_generation', 'chat_input');
+                onStop?.();
+              } : (e) => {
+                if (input.trim()) {
+                  trackChatEvent('user_message_submit', {
+                    message_type: 'user_message',
+                    message_length: input.trim().length,
+                    input_method: 'button',
+                  });
+                }
+              }}
               size="sm"
               className={`w-8 h-8 p-0 rounded-md transition-colors ${
                 isLoading 

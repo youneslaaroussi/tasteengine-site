@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { useChatHistory } from '@/hooks/use-chat-history';
 import { ChatSession } from '@/types/chat-history';
+import { trackChatHistoryEvent, trackUserEngagement } from '@/lib/gtag';
 
 interface ChatHistorySidebarProps {
   onNewChat: () => void;
@@ -33,17 +34,25 @@ export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const { sessions, currentSessionId, deleteSession, clearHistory } = useChatHistory();
 
+  const handleOpenChange = (open: boolean) => {
+    setIsOpen(open);
+    trackChatHistoryEvent(open ? 'sidebar_open' : 'sidebar_close');
+  };
+
   const handleSessionClick = (session: ChatSession) => {
+    trackChatHistoryEvent('load_session');
     onLoadSession(session);
     setIsOpen(false);
   };
 
   const handleDeleteSession = (e: React.MouseEvent, sessionId: string) => {
     e.stopPropagation();
+    trackUserEngagement('delete_session', 'chat_history');
     deleteSession(sessionId);
   };
 
   const handleNewChat = () => {
+    trackChatHistoryEvent('new_chat');
     onNewChat();
     setIsOpen(false);
   };
@@ -67,7 +76,7 @@ export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
   };
 
   return (
-    <Sheet open={isOpen} onOpenChange={setIsOpen}>
+    <Sheet open={isOpen} onOpenChange={handleOpenChange}>
       <SheetTrigger asChild>
         <Button 
           variant="ghost" 
