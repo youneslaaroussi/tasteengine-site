@@ -1,7 +1,6 @@
 import { memo, useEffect, useRef, useState } from 'react';
 import { PrinterIcon, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { fabric } from 'fabric';
 
 interface FlightItineraryCardProps {
   itinerary: {
@@ -48,511 +47,262 @@ interface FlightItineraryCardProps {
       aircraft: string;
       bookingClass: string;
     }>;
-    metadata: {
-      generatedBy: string;
-      version: string;
-      format: string;
-    };
   };
-  json?: string;
 }
 
-export const FlightItineraryCard = memo(function FlightItineraryCard({ itinerary, json }: FlightItineraryCardProps) {
+export const FlightItineraryCard = memo(function FlightItineraryCard({
+  itinerary,
+}: FlightItineraryCardProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const fabricCanvasRef = useRef<fabric.Canvas | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Defensive checks
-  if (!itinerary) {
-    console.error('FlightItineraryCard: itinerary prop is required');
-    return <div className="text-red-500 p-4">Error: Missing itinerary data</div>;
-  }
+  const addText = (ctx: CanvasRenderingContext2D, text: string, x: number, y: number, options: {
+    fontSize?: number;
+    fontFamily?: string;
+    fontWeight?: string;
+    fill?: string;
+    textAlign?: CanvasTextAlign;
+  } = {}) => {
+    const {
+      fontSize = 14,
+      fontFamily = 'Arial',
+      fontWeight = 'normal',
+      fill = '#000000',
+      textAlign = 'left'
+    } = options;
 
-  const formatDate = (dateString: string) => {
-    if (!dateString) return 'N/A';
+    ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
+    ctx.fillStyle = fill;
+    ctx.textAlign = textAlign;
+    ctx.fillText(text, x, y);
+  };
+
+  const addLine = (ctx: CanvasRenderingContext2D, x1: number, y1: number, x2: number, y2: number, options: {
+    stroke?: string;
+    strokeWidth?: number;
+  } = {}) => {
+    const { stroke = '#000000', strokeWidth = 1 } = options;
     
-    try {
-      // Handle different date formats
-      let date: Date;
-      
-      if (dateString.includes('T')) {
-        // ISO format like "2025-07-15T21:56:18.568Z"
-        date = new Date(dateString);
-      } else if (dateString.includes(' ')) {
-        // Format like "2025-07-20 14:30:00 EDT" - extract just the date part
-        const datePart = dateString.split(' ')[0];
-        date = new Date(datePart);
-      } else {
-        // Try to parse as-is
-        date = new Date(dateString);
-      }
-      
-      if (isNaN(date.getTime())) {
-        return dateString;
-      }
-      
-      return date.toLocaleDateString('en-US', {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric'
-      });
-    } catch {
-      return dateString;
-    }
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = strokeWidth;
+    ctx.stroke();
   };
 
-  const formatTime = (timeString: string) => {
-    if (!timeString) return 'N/A';
-    
-    try {
-      let time: string;
-      
-      if (timeString.includes('T')) {
-        // ISO format like "2025-07-15T21:56:18.568Z"
-        time = timeString.split('T')[1].split('.')[0].slice(0, 5);
-      } else if (timeString.includes(' ')) {
-        // Format like "2025-07-20 14:30:00 EDT" - extract time part
-        const parts = timeString.split(' ');
-        if (parts.length >= 2) {
-          time = parts[1].slice(0, 5); // Get HH:MM
-        } else {
-          time = timeString.slice(0, 5);
-        }
-      } else {
-        // Simple time format
-        time = timeString.slice(0, 5);
-      }
-      
-      return time;
-    } catch {
-      return timeString;
-    }
+  const addDashedLine = (ctx: CanvasRenderingContext2D, x1: number, y1: number, x2: number, y2: number) => {
+    ctx.beginPath();
+    ctx.setLineDash([5, 5]);
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.strokeStyle = '#cccccc';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.setLineDash([]); // Reset dash pattern
   };
 
-  const formatPrice = (amount: number, currency: string) => {
-    try {
-      return new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: currency || 'USD'
-      }).format(amount || 0);
-    } catch {
-      return `${currency || 'USD'} ${amount || 0}`;
-    }
-  };
-
-  const addText = (canvas: fabric.Canvas, text: string, x: number, y: number, options: any = {}) => {
-    const textObj = new fabric.Text(text, {
-      left: x,
-      top: y,
-      fontFamily: 'Courier New, monospace',
-      fill: '#000000',
-      selectable: false,
-      evented: false,
-      ...options
-    });
-    canvas.add(textObj);
-    return textObj;
-  };
-
-  const addLine = (canvas: fabric.Canvas, x1: number, y1: number, x2: number, y2: number, options: any = {}) => {
-    const line = new fabric.Line([x1, y1, x2, y2], {
-      stroke: '#000000',
-      strokeWidth: 1,
-      selectable: false,
-      evented: false,
-      ...options
-    });
-    canvas.add(line);
-    return line;
-  };
-
-  const addDashedLine = (canvas: fabric.Canvas, x1: number, y1: number, x2: number, y2: number) => {
-    const line = new fabric.Line([x1, y1, x2, y2], {
-      stroke: '#666666',
-      strokeWidth: 1,
-      strokeDashArray: [5, 5],
-      selectable: false,
-      evented: false
-    });
-    canvas.add(line);
-    return line;
-  };
-
-  const renderCanvas = async () => {
+  const renderCanvas = () => {
     if (!canvasRef.current) return;
-
-    // Get container width and calculate responsive dimensions
-    const container = canvasRef.current.parentElement;
-    const containerWidth = container ? container.clientWidth : 800;
     
-    // Set canvas width
-    const width = Math.min(containerWidth - 40, 600); // Max 600px, receipt-style
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    setIsLoading(true);
+
+    // Set canvas size
+    const width = 600;
+    const height = Math.max(400, 200 + (itinerary.flights.length * 120));
     
-    // Scale factor for responsive sizing
-    const scale = width / 600; // Base size 600px
-    const margin = 40 * scale;
-    const contentWidth = width - (margin * 2);
+    canvas.width = width;
+    canvas.height = height;
+    canvas.style.width = '100%';
+    canvas.style.height = 'auto';
 
-    // Calculate required height based on content
-    let requiredHeight = margin; // Start with top margin
+    // Clear canvas
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, width, height);
 
-    // Header section height
-    requiredHeight += 30 * scale; // Title
-    requiredHeight += 30 * scale; // Line + spacing
-    requiredHeight += 20 * scale; // Trip details
-    requiredHeight += 20 * scale; // Passenger
-    requiredHeight += 15 * scale; // Date
-    requiredHeight += 15 * scale; // Reference
-    requiredHeight += 25 * scale; // Spacing
+    let currentY = 30;
 
-    // Summary section height
-    if (Object.keys(itinerary.summary || {}).length > 0) {
-      requiredHeight += 20 * scale; // Dashed line + spacing
-      requiredHeight += 20 * scale; // Summary title
-      requiredHeight += 20 * scale; // Summary title spacing
-      requiredHeight += 3 * 18 * scale; // 3 summary items
-      requiredHeight += 10 * scale; // Bottom spacing
-    }
-
-    // Flights section height
-    if ((itinerary.flights || []).length > 0) {
-      requiredHeight += 20 * scale; // Dashed line + spacing
-      requiredHeight += 25 * scale; // Flight details title + spacing
-
-      const flightsToShow = (itinerary.flights || []).slice(0, 4);
-      flightsToShow.forEach((flight, index) => {
-        requiredHeight += 18 * scale; // Flight name + price
-        requiredHeight += 15 * scale; // Aircraft + class
-        
-        // Route details - count actual items
-        let routeItemCount = 0;
-        if (flight.origin?.code || flight.origin?.city) routeItemCount++;
-        if (flight.departure?.time || flight.departure?.dateTime || flight.departure?.date) routeItemCount++;
-        if (flight.destination?.code || flight.destination?.city) routeItemCount++;
-        if (flight.arrival?.time || flight.arrival?.dateTime || flight.arrival?.date) routeItemCount++;
-        if (flight.duration) routeItemCount++;
-        if (typeof flight.stops === 'number') routeItemCount++;
-        
-        requiredHeight += routeItemCount * 14 * scale;
-        
-        // Space between flights
-        if (index < flightsToShow.length - 1) {
-          requiredHeight += 30 * scale; // Line + spacing
-        }
-      });
-
-      requiredHeight += 20 * scale; // Bottom spacing
-    }
-
-    // Notes section height
-    if (itinerary.notes) {
-      requiredHeight += 20 * scale; // Dashed line + spacing
-      requiredHeight += 20 * scale; // Notes title
-      requiredHeight += 20 * scale; // Notes title spacing
-      
-      // Estimate height for notes text (rough calculation)
-      const noteWords = itinerary.notes.split(' ');
-      const maxLineLength = 50 * scale;
-      let lineCount = 1;
-      let currentLine = '';
-      
-      noteWords.forEach(word => {
-        const testLine = currentLine + (currentLine ? ' ' : '') + word;
-        if (testLine.length > maxLineLength && currentLine) {
-          lineCount++;
-          currentLine = word;
-        } else {
-          currentLine = testLine;
-        }
-      });
-      
-      requiredHeight += lineCount * 15 * scale;
-      requiredHeight += 25 * scale; // Bottom spacing
-    }
-
-    // Footer height
-    requiredHeight += 15 * scale; // Dashed line + spacing
-    requiredHeight += 15 * scale; // Generated by text
-    requiredHeight += 15 * scale; // Thank you text
-    requiredHeight += margin; // Bottom margin
-
-    const height = Math.max(requiredHeight, 200 * scale); // Minimum height
-
-    canvasRef.current.width = width;
-    canvasRef.current.height = height;
-
-    const canvas = new fabric.Canvas(canvasRef.current, {
-      width: width,
-      height: height,
-      backgroundColor: '#ffffff'
-    });
-
-    fabricCanvasRef.current = canvas;
-
-    let currentY = margin;
-
-    // Header - Company/Service name
-    addText(canvas, 'FLIGHT ITINERARY', margin, currentY, {
-      fontSize: 16 * scale,
+    // Header
+    addText(ctx, 'FLIGHT ITINERARY', width / 2, currentY, {
+      fontSize: 24,
       fontWeight: 'bold',
-      fontFamily: 'Arial, sans-serif'
+      textAlign: 'center',
+      fill: '#1a1a1a'
     });
 
-    currentY += 30 * scale;
-    addLine(canvas, margin, currentY, width - margin, currentY, { strokeWidth: 2 });
-    currentY += 20 * scale;
+    currentY += 40;
 
     // Trip details
-    addText(canvas, `TRIP: ${itinerary.tripName || 'Flight Itinerary'}`, margin, currentY, {
-      fontSize: 12 * scale,
+    addText(ctx, `Trip: ${itinerary.tripName}`, 40, currentY, {
+      fontSize: 16,
       fontWeight: 'bold'
     });
-    currentY += 20 * scale;
+    currentY += 25;
 
-    addText(canvas, `PASSENGER: ${itinerary.travelerName || 'Unknown Traveler'}`, margin, currentY, {
-      fontSize: 12 * scale
+    addText(ctx, `Traveler: ${itinerary.travelerName}`, 40, currentY, {
+      fontSize: 14
     });
-    currentY += 15 * scale;
+    currentY += 20;
 
-    addText(canvas, `DATE: ${formatDate(itinerary.createdAt || new Date().toISOString())}`, margin, currentY, {
-      fontSize: 12 * scale
+    addText(ctx, `Created: ${new Date(itinerary.createdAt).toLocaleDateString()}`, 40, currentY, {
+      fontSize: 12,
+      fill: '#666666'
     });
-    currentY += 15 * scale;
 
-    addText(canvas, `REF: ${itinerary.id || 'N/A'}`, margin, currentY, {
-      fontSize: 12 * scale
+    // Summary box
+    currentY += 40;
+    ctx.strokeStyle = '#e5e5e5';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(40, currentY - 15, width - 80, 60);
+
+    addText(ctx, `Total Flights: ${itinerary.summary.totalFlights}`, 50, currentY, {
+      fontSize: 12
     });
-    currentY += 25 * scale;
+    currentY += 20;
 
-    // Summary section
-    const summary = itinerary.summary || {};
-    if (Object.keys(summary).length > 0) {
-      addDashedLine(canvas, margin, currentY, width - margin, currentY);
-      currentY += 20 * scale;
+    addText(ctx, `Total Price: ${itinerary.summary.currency} ${itinerary.summary.totalPrice}`, 50, currentY, {
+      fontSize: 14,
+      fontWeight: 'bold',
+      fill: '#2563eb'
+    });
 
-      addText(canvas, 'SUMMARY', margin, currentY, {
-        fontSize: 12 * scale,
+    addText(ctx, `Route: ${itinerary.summary.origins} → ${itinerary.summary.destinations}`, 300, currentY - 20, {
+      fontSize: 12
+    });
+
+    currentY += 40;
+
+    // Flights
+    itinerary.flights.forEach((flight, index) => {
+      // Flight separator line
+      if (index > 0) {
+        addDashedLine(ctx, 40, currentY, width - 40, currentY);
+        currentY += 20;
+      }
+
+      // Flight number and airline
+      addText(ctx, `Flight ${flight.sequence} - ${flight.airline}`, 40, currentY, {
+        fontSize: 16,
         fontWeight: 'bold'
       });
-      currentY += 20 * scale;
 
-      // Summary items in receipt format
-      const summaryItems = [
-        [`FLIGHTS:`, `${summary.totalFlights || 0}`],
-        [`ROUTE:`, `${summary.origins || 'XXX'} → ${summary.destinations || 'XXX'}`],
-        [`TOTAL:`, `${formatPrice(summary.totalPrice || 0, summary.currency || 'USD')}`]
-      ];
-
-      summaryItems.forEach(([label, value]) => {
-        addText(canvas, label, margin, currentY, {
-          fontSize: 11 * scale
-        });
-        addText(canvas, value, width - margin, currentY, {
-          fontSize: 11 * scale,
-          textAlign: 'right',
-          originX: 'right'
-        });
-        currentY += 18 * scale;
+      addText(ctx, `${flight.aircraft} | ${flight.bookingClass} Class`, 400, currentY, {
+        fontSize: 12,
+        fill: '#666666'
       });
 
-      currentY += 10 * scale;
-    }
+      currentY += 25;
 
-    // Flights section
-    const flights = itinerary.flights || [];
-    if (flights.length > 0) {
-      addDashedLine(canvas, margin, currentY, width - margin, currentY);
-      currentY += 20 * scale;
-
-      addText(canvas, 'FLIGHT DETAILS', margin, currentY, {
-        fontSize: 12 * scale,
+      // Route
+      addText(ctx, flight.origin.code, 40, currentY, {
+        fontSize: 20,
         fontWeight: 'bold'
       });
-      currentY += 25 * scale;
 
-      flights.slice(0, 4).forEach((flight, index) => { // Limit to 4 flights
-        // Flight number and airline
-        addText(canvas, `${flight.sequence || index + 1}. ${flight.airline || 'Unknown Airline'}`, margin, currentY, {
-          fontSize: 11 * scale,
-          fontWeight: 'bold'
-        });
-        
-        // Price aligned to right
-        addText(canvas, formatPrice(flight.price?.amount || 0, flight.price?.currency || 'USD'), width - margin, currentY, {
-          fontSize: 11 * scale,
-          fontWeight: 'bold',
-          textAlign: 'right',
-          originX: 'right'
-        });
-        currentY += 18 * scale;
-
-        // Aircraft and class
-        addText(canvas, `${flight.aircraft || 'Unknown'} • ${flight.bookingClass || 'Economy'}`, margin + 10 * scale, currentY, {
-          fontSize: 10 * scale,
-          fill: '#666666'
-        });
-        currentY += 15 * scale;
-
-        // Route details
-        const routeDetails = [];
-
-        // FROM
-        if (flight.origin?.code || flight.origin?.city) {
-          let from = '';
-          if (flight.origin?.code) from += flight.origin.code;
-          if (flight.origin?.city) from += (from ? ' - ' : '') + flight.origin.city;
-          routeDetails.push([`FROM:`, from]);
-        }
-
-        // Departure time/date
-        if (flight.departure?.time || flight.departure?.dateTime || flight.departure?.date) {
-          const depTime = formatTime(flight.departure?.time || flight.departure?.dateTime || '');
-          const depDate = formatDate(flight.departure?.date || flight.departure?.dateTime || '');
-          if (depTime || depDate) {
-            routeDetails.push([``, `${depTime}${depTime && depDate ? ' ' : ''}${depDate}`.trim()]);
-          }
-        }
-
-        // TO
-        if (flight.destination?.code || flight.destination?.city) {
-          let to = '';
-          if (flight.destination?.code) to += flight.destination.code;
-          if (flight.destination?.city) to += (to ? ' - ' : '') + flight.destination.city;
-          routeDetails.push([`TO:`, to]);
-        }
-
-        // Arrival time/date
-        if (flight.arrival?.time || flight.arrival?.dateTime || flight.arrival?.date) {
-          const arrTime = formatTime(flight.arrival?.time || flight.arrival?.dateTime || '');
-          const arrDate = formatDate(flight.arrival?.date || flight.arrival?.dateTime || '');
-          if (arrTime || arrDate) {
-            routeDetails.push([``, `${arrTime}${arrTime && arrDate ? ' ' : ''}${arrDate}`.trim()]);
-          }
-        }
-
-        // DURATION
-        if (flight.duration) {
-          routeDetails.push([`DURATION:`, flight.duration]);
-        }
-
-        // STOPS
-        if (typeof flight.stops === 'number') {
-          routeDetails.push([`STOPS:`, flight.stops === 0 ? 'Direct' : `${flight.stops} stop${flight.stops > 1 ? 's' : ''}`]);
-        }
-
-        routeDetails.forEach(([label, value]) => {
-          if (label) {
-            addText(canvas, label, margin + 20 * scale, currentY, {
-              fontSize: 9 * scale,
-              fill: '#666666'
-            });
-            addText(canvas, value, margin + 80 * scale, currentY, {
-              fontSize: 9 * scale
-            });
-          } else {
-            addText(canvas, value, margin + 80 * scale, currentY, {
-              fontSize: 9 * scale,
-              fill: '#666666'
-            });
-          }
-          currentY += 14 * scale;
-        });
-
-        // Add space between flights
-        if (index < flights.length - 1) {
-          currentY += 15 * scale;
-          addLine(canvas, margin + 10 * scale, currentY, width - margin - 10 * scale, currentY, {
-            stroke: '#cccccc',
-            strokeWidth: 1
-          });
-          currentY += 15 * scale;
-        }
+      addText(ctx, flight.origin.city, 40, currentY + 18, {
+        fontSize: 12,
+        fill: '#666666'
       });
 
-      currentY += 20 * scale;
-    }
+      // Arrow
+      addText(ctx, '→', 150, currentY, {
+        fontSize: 24,
+        textAlign: 'center'
+      });
 
-    // Notes section
+      addText(ctx, flight.destination.code, 220, currentY, {
+        fontSize: 20,
+        fontWeight: 'bold'
+      });
+
+      addText(ctx, flight.destination.city, 220, currentY + 18, {
+        fontSize: 12,
+        fill: '#666666'
+      });
+
+      // Times
+      addText(ctx, `Departure: ${flight.departure.time}`, 350, currentY, {
+        fontSize: 12
+      });
+
+      addText(ctx, `Arrival: ${flight.arrival.time}`, 350, currentY + 15, {
+        fontSize: 12
+      });
+
+      currentY += 40;
+
+      // Duration and price
+      addText(ctx, `Duration: ${flight.duration}`, 40, currentY, {
+        fontSize: 12
+      });
+
+      addText(ctx, `Stops: ${flight.stops}`, 150, currentY, {
+        fontSize: 12
+      });
+
+      addText(ctx, `${flight.price.currency} ${flight.price.amount}`, 450, currentY, {
+        fontSize: 14,
+        fontWeight: 'bold',
+        fill: '#2563eb'
+      });
+
+      currentY += 30;
+    });
+
+    // Notes
     if (itinerary.notes) {
-      addDashedLine(canvas, margin, currentY, width - margin, currentY);
-      currentY += 20 * scale;
+      currentY += 20;
+      addLine(ctx, 40, currentY, width - 40, currentY, {
+        stroke: '#e5e5e5'
+      });
+      currentY += 25;
 
-      addText(canvas, 'NOTES', margin, currentY, {
-        fontSize: 12 * scale,
+      addText(ctx, 'Notes:', 40, currentY, {
+        fontSize: 14,
         fontWeight: 'bold'
       });
-      currentY += 20 * scale;
+      currentY += 20;
 
-      // Word wrap notes
-      const noteWords = itinerary.notes.split(' ');
-      let currentLine = '';
-      const maxLineLength = 50 * scale;
-
-      noteWords.forEach(word => {
-        const testLine = currentLine + (currentLine ? ' ' : '') + word;
-        if (testLine.length > maxLineLength && currentLine) {
-          addText(canvas, currentLine, margin, currentY, {
-            fontSize: 10 * scale
+      // Split notes into lines if too long
+      const maxWidth = width - 80;
+      const words = itinerary.notes.split(' ');
+      let line = '';
+      
+      for (const word of words) {
+        const testLine = line + word + ' ';
+        const metrics = ctx.measureText(testLine);
+        
+        if (metrics.width > maxWidth && line !== '') {
+          addText(ctx, line.trim(), 40, currentY, {
+            fontSize: 12
           });
-          currentY += 15 * scale;
-          currentLine = word;
+          currentY += 18;
+          line = word + ' ';
         } else {
-          currentLine = testLine;
+          line = testLine;
         }
-      });
-
-      if (currentLine) {
-        addText(canvas, currentLine, margin, currentY, {
-          fontSize: 10 * scale
+      }
+      
+      if (line.trim()) {
+        addText(ctx, line.trim(), 40, currentY, {
+          fontSize: 12
         });
-        currentY += 25 * scale;
       }
     }
 
-    // Footer
-    addDashedLine(canvas, margin, currentY, width - margin, currentY);
-    currentY += 15 * scale;
-
-    addText(canvas, `Generated by ${itinerary.metadata?.generatedBy || 'Travel Assistant'}`, margin, currentY, {
-      fontSize: 8 * scale,
-      fill: '#666666'
-    });
-
-    // Thank you message (receipt style)
-    currentY += 15 * scale;
-    addText(canvas, 'THANK YOU FOR CHOOSING OUR SERVICE', width / 2, currentY, {
-      fontSize: 9 * scale,
-      textAlign: 'center',
-      originX: 'center',
-      fill: '#666666'
-    });
-
-    canvas.renderAll();
     setIsLoading(false);
   };
 
-  const handleRerender = () => {
-    setIsLoading(true);
-    if (fabricCanvasRef.current) {
-      fabricCanvasRef.current.dispose();
-      fabricCanvasRef.current = null;
-    }
-    setTimeout(() => {
-      renderCanvas();
-    }, 100);
-  };
-
   const handleSaveAsImage = async () => {
-    if (!fabricCanvasRef.current) return;
+    if (!canvasRef.current) return;
 
     try {
       // Convert canvas to high-quality image
-      const dataURL = fabricCanvasRef.current.toDataURL({
-        format: 'png',
-        quality: 1.0,
-        multiplier: 2 // 2x resolution for crisp display
-      });
+      const dataURL = canvasRef.current.toDataURL('png', 1.0);
 
       // Create download link
       const link = document.createElement('a');
@@ -582,28 +332,12 @@ export const FlightItineraryCard = memo(function FlightItineraryCard({ itinerary
     }
   };
 
+  const handleRerender = () => {
+    renderCanvas();
+  };
+
   useEffect(() => {
     renderCanvas();
-
-    // Handle window resize for responsive canvas
-    const handleResize = () => {
-      // Debounce resize to avoid too many re-renders
-      setTimeout(() => {
-        if (fabricCanvasRef.current) {
-          fabricCanvasRef.current.dispose();
-        }
-        renderCanvas();
-      }, 100);
-    };
-
-    window.addEventListener('resize', handleResize);
-
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      if (fabricCanvasRef.current) {
-        fabricCanvasRef.current.dispose();
-      }
-    };
   }, [itinerary]);
 
   return (
