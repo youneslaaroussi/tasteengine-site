@@ -1,16 +1,13 @@
 'use client';
 
-import { useChat } from '@ai-sdk/react';
+import { useDirectChat } from '@/hooks/use-direct-chat';
 import { ChatMessage } from './chat-message';
 import { ChatInput, ChatInputRef } from './chat-input';
 import { PromptCards } from './prompt-cards';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Button } from '@/components/ui/button';
 import { useEffect, useRef, useMemo, useCallback, useState, useImperativeHandle, forwardRef } from 'react';
-import { ChevronDown } from 'lucide-react';
 import { useChatHistory } from '@/hooks/use-chat-history';
 import { ChatSession } from '@/types/chat-history';
-import { trackChatEvent, trackChatHistoryEvent, trackUserEngagement } from '@/lib/gtag';
+import { trackChatEvent, trackChatHistoryEvent } from '@/lib/gtag';
 
 // Move initial messages outside component to prevent recreation on every render
 const INITIAL_MESSAGES = [
@@ -18,6 +15,7 @@ const INITIAL_MESSAGES = [
     id: 'welcome',
     role: 'assistant' as const,
     content: "Hi! I'm your travel assistant. I can help you search for flights, find travel deals, and plan your trips. What can I help you with today?",
+    createdAt: new Date(),
   },
 ];
 
@@ -27,84 +25,30 @@ export interface ChatInterfaceRef {
 }
 
 export const ChatInterface = forwardRef<ChatInterfaceRef>((props, ref) => {
-  const { messages, input, handleInputChange, handleSubmit, isLoading, stop, setInput, setMessages } = useChat({
-    api: '/api/chat',
+  const { messages, input, handleInputChange, handleSubmit, isLoading, stop, setInput, setMessages } = useDirectChat({
     initialMessages: INITIAL_MESSAGES,
   });
 
   const { updateCurrentSession, createNewSession, currentSession, loadSession: loadSessionFromHistory } = useChatHistory();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
   const chatInputRef = useRef<ChatInputRef>(null);
-  const isAutoScrolling = useRef<boolean>(false);
-  const lastMessageLength = useRef<number>(0);
   const prevIsLoading = useRef<boolean>(false);
   
-  // Track if user is at the bottom of the scroll area
-  const [isAtBottom, setIsAtBottom] = useState(true);
-  
-  // Threshold for considering "near bottom" (in pixels)
-  const BOTTOM_THRESHOLD = 30;
-
-  // Check if user is at or near the bottom of the scroll area
-  const checkIfAtBottom = useCallback(() => {
-    if (!scrollAreaRef.current) return false;
-    
-    const scrollElement = scrollAreaRef.current.querySelector('[data-slot="scroll-area-viewport"]') as HTMLElement;
-    if (!scrollElement) return false;
-    
-    const { scrollTop, scrollHeight, clientHeight } = scrollElement;
-    const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
-    
-    return distanceFromBottom <= BOTTOM_THRESHOLD;
+  const scrollToBottom = useCallback(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
   }, []);
 
-  // Handle manual scroll events
-  const handleScroll = useCallback(() => {
-    if (isAutoScrolling.current) return;
-    
-    const atBottom = checkIfAtBottom();
-    setIsAtBottom(atBottom);
-  }, [checkIfAtBottom]);
-
-  // Set up scroll event listener
+  // Scroll to bottom when messages change or streaming ends
   useEffect(() => {
-    const scrollElement = scrollAreaRef.current?.querySelector('[data-slot="scroll-area-viewport"]') as HTMLElement;
-    if (!scrollElement) return;
-
-    scrollElement.addEventListener('scroll', handleScroll, { passive: true });
+    const timer = setTimeout(() => {
+      scrollToBottom();
+    }, 100); // Small delay to allow layout to settle
     
-    return () => {
-      scrollElement.removeEventListener('scroll', handleScroll);
-    };
-  }, [handleScroll]);
-
-  // Instant scroll to bottom (for streaming)
-  const scrollToBottomInstant = useCallback(() => {
-    if (!messagesEndRef.current || !isAtBottom) return;
-    
-    isAutoScrolling.current = true;
-    messagesEndRef.current.scrollIntoView({ behavior: 'auto' });
-    
-    // Reset flag quickly for instant scrolling
-    setTimeout(() => {
-      isAutoScrolling.current = false;
-    }, 50);
-  }, [isAtBottom]);
-
-  // Smooth scroll to bottom (for manual action)
-  const scrollToBottomSmooth = useCallback(() => {
-    if (!messagesEndRef.current) return;
-    
-    isAutoScrolling.current = true;
-    messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    
-    setTimeout(() => {
-      isAutoScrolling.current = false;
-      setIsAtBottom(true);
-    }, 300);
-  }, []);
+    return () => clearTimeout(timer);
+  }, [messages, scrollToBottom]);
 
   // Focus input when loading completes
   useEffect(() => {
@@ -126,47 +70,6 @@ export const ChatInterface = forwardRef<ChatInterfaceRef>((props, ref) => {
     
     return () => clearTimeout(timer);
   }, []);
-
-  // Track content changes for streaming
-  useEffect(() => {
-    if (!isLoading) {
-      lastMessageLength.current = 0;
-      return;
-    }
-
-    const currentMessage = messages[messages.length - 1];
-    if (!currentMessage || currentMessage.role === 'user') return;
-
-    const currentLength = currentMessage.content.length;
-    
-    // If content is growing (streaming) and we're at bottom, scroll instantly
-    if (currentLength > lastMessageLength.current && isAtBottom) {
-      scrollToBottomInstant();
-    }
-    
-    lastMessageLength.current = currentLength;
-  }, [messages, isLoading, isAtBottom, scrollToBottomInstant]);
-
-  // Scroll when new messages arrive
-  useEffect(() => {
-    if (isAtBottom) {
-      // Use smooth scroll for new messages, instant for streaming content
-      if (isLoading) {
-        scrollToBottomInstant();
-      } else {
-        scrollToBottomSmooth();
-      }
-    }
-  }, [messages.length, isAtBottom, isLoading, scrollToBottomInstant, scrollToBottomSmooth]);
-
-  // Initial scroll to bottom on mount
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      scrollToBottomSmooth();
-    }, 100);
-    
-    return () => clearTimeout(timer);
-  }, [scrollToBottomSmooth]);
 
   // Save messages to localStorage when they change
   useEffect(() => {
@@ -201,11 +104,7 @@ export const ChatInterface = forwardRef<ChatInterfaceRef>((props, ref) => {
     // Auto-submit the prompt after a brief delay
     setTimeout(() => {
       if (chatInputRef.current) {
-        const mockEvent = {
-          preventDefault: () => {},
-          currentTarget: { elements: { message: { value: prompt } } }
-        } as any;
-        handleSubmit(mockEvent);
+        handleSubmit();
       }
     }, 100);
   }, [setInput, handleSubmit, currentSession?.id]);
@@ -240,14 +139,14 @@ export const ChatInterface = forwardRef<ChatInterfaceRef>((props, ref) => {
     
     // Reset scroll position
     setTimeout(() => {
-      scrollToBottomSmooth();
+      scrollToBottom();
     }, 100);
     
     // Focus input
     setTimeout(() => {
       chatInputRef.current?.focus();
     }, 200);
-  }, [stop, setMessages, setInput, createNewSession, scrollToBottomSmooth]);
+  }, [stop, setMessages, setInput, createNewSession, scrollToBottom]);
 
   // Load session function
   const loadSession = useCallback((session: ChatSession) => {
@@ -268,14 +167,14 @@ export const ChatInterface = forwardRef<ChatInterfaceRef>((props, ref) => {
     
     // Reset scroll position
     setTimeout(() => {
-      scrollToBottomSmooth();
+      scrollToBottom();
     }, 100);
     
     // Focus input
     setTimeout(() => {
       chatInputRef.current?.focus();
     }, 200);
-  }, [stop, loadSessionFromHistory, setMessages, setInput, scrollToBottomSmooth]);
+  }, [stop, loadSessionFromHistory, setMessages, setInput, scrollToBottom]);
 
   // Expose functions through ref
   useImperativeHandle(ref, () => ({
@@ -286,37 +185,19 @@ export const ChatInterface = forwardRef<ChatInterfaceRef>((props, ref) => {
   return (
     <div className="flex flex-col h-full bg-white">
       {/* Messages Area */}
-      <div className="flex-1 overflow-hidden relative">
-        <ScrollArea ref={scrollAreaRef} className="h-full">
-          <div className="max-w-3xl mx-auto">
-            {renderedMessages}
-            
-            {/* Show prompt cards only when there are no user messages */}
-            {!hasUserMessages && !isLoading && (
-              <div className="mt-8 mb-8">
-                <PromptCards onPromptClick={handlePromptClick} />
-              </div>
-            )}
-            
-            <div ref={messagesEndRef} />
-          </div>
-        </ScrollArea>
-        
-        {/* Scroll to bottom button - only show when not at bottom */}
-        {!isAtBottom && (
-          <div className="absolute bottom-4 right-4">
-            <Button
-              onClick={() => {
-                trackUserEngagement('scroll_to_bottom', 'chat_interface');
-                scrollToBottomSmooth();
-              }}
-              size="sm"
-              className="rounded-full w-10 h-10 p-0 bg-blue-600 hover:bg-blue-700 text-white shadow-lg"
-            >
-              <ChevronDown className="w-4 h-4" />
-            </Button>
-          </div>
-        )}
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-3xl mx-auto">
+          {renderedMessages}
+          
+          {/* Show prompt cards only when there are no user messages */}
+          {!hasUserMessages && !isLoading && (
+            <div className="mt-8 mb-8">
+              <PromptCards onPromptClick={handlePromptClick} />
+            </div>
+          )}
+          
+          <div ref={messagesEndRef} />
+        </div>
       </div>
 
       {/* Input Area */}

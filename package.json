@@ -9,7 +9,6 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@ai-sdk/react": "^1.2.12",
     "@hookform/resolvers": "^5.1.1",
     "@radix-ui/react-avatar": "^1.1.10",
     "@radix-ui/react-dialog": "^1.1.14",
@@ -20,11 +19,15 @@
     "@radix-ui/react-slot": "^1.2.3",
     "@tailwindcss/typography": "^0.5.16",
     "@types/react-syntax-highlighter": "^15.5.13",
-    "ai": "^4.3.18",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "emoji-regex": "^10.4.0",
+    "fabric": "5.4.0",
     "gtag": "^1.0.1",
+    "html-tags": "^5.0.0",
+    "html2canvas": "^1.4.1",
     "lucide-react": "^0.525.0",
+    "motion": "^12.23.6",
     "next": "15.3.5",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
@@ -39,6 +42,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/fabric": "^5.3.10",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

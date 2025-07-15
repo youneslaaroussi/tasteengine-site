@@ -5,6 +5,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { StatusMessage, ToolProgress } from './tool-status';
 import { FlightItineraryCard } from './flight-itinerary-card';
+import { ClientTimestamp } from './ui/client-timestamp';
 
 // Compact shimmer component for reasoning
 const ReasoningShimmer = memo(function ReasoningShimmer({ content, tokens, isComplete, children }: { content: string; tokens?: number; isComplete?: boolean; children?: React.ReactNode }) {
@@ -124,6 +125,8 @@ const normalizeItineraryData = (data: any) => {
 function parseToolContent(content: string) {
   const elements: Array<{ type: 'text' | 'status' | 'tool' | 'reasoning'; content: any }> = [];
   const standaloneTools = new Map<string, ToolState>();
+  // Track all tool markers seen during this parse to handle re-parsing correctly
+  const toolMarkers = new Map<string, Array<{ action: string; text: string; progress?: number }>>();
 
   const parts = content.split(/(\n?\{% [^%]+? %\}\n?)/g).filter(p => p && p.trim());
   
@@ -282,10 +285,17 @@ function parseToolContent(content: string) {
     const toolName = commandParts.join('_');
     
 
-
     if (fullCommand === 'status') {
       elements.push({ type: 'status', content: text });
       continue;
+    }
+
+    // Track tool markers for this parse
+    if (toolName !== 'reasoning') {
+      if (!toolMarkers.has(toolName)) {
+        toolMarkers.set(toolName, []);
+      }
+      toolMarkers.get(toolName)!.push({ action, text, progress: progress ? parseInt(progress) : undefined });
     }
 
     let activeReasoningIndex = -1;
@@ -297,7 +307,6 @@ function parseToolContent(content: string) {
     }
     const activeReasoningState = activeReasoningIndex !== -1 ? elements[activeReasoningIndex].content : null;
     
-
 
     if (toolName === 'reasoning') {
       if (action === 'start') {
@@ -338,7 +347,27 @@ function parseToolContent(content: string) {
         if (action === 'start') {
           standaloneTools.set(toolName, { name: toolName, description: text, progressSteps: [], isComplete: false });
         } else {
-          const tool = standaloneTools.get(toolName);
+          let tool = standaloneTools.get(toolName);
+          
+          // If tool doesn't exist but we have markers for it, reconstruct it from markers
+          if (!tool && toolMarkers.has(toolName)) {
+            const markers = toolMarkers.get(toolName)!;
+            const startMarker = markers.find(m => m.action === 'start');
+            if (startMarker) {
+              tool = { 
+                name: toolName, 
+                description: startMarker.text, 
+                progressSteps: [], 
+                isComplete: false 
+              };
+              // Apply all progress markers
+              markers.filter(m => m.action === 'progress').forEach(m => {
+                tool!.progressSteps.push({ text: m.text, progress: m.progress || 0 });
+              });
+              standaloneTools.set(toolName, tool);
+            }
+          }
+          
           if (tool) {
             if (action === 'progress') {
               tool.progressSteps.push({ text, progress: parseInt(progress || '0') });
@@ -356,7 +385,7 @@ function parseToolContent(content: string) {
                 }
               }
               elements.push({ type: 'tool', content: tool });
-              standaloneTools.delete(toolName);
+              // Don't delete from standaloneTools to handle re-parsing correctly
             }
           }
         }
@@ -366,7 +395,9 @@ function parseToolContent(content: string) {
 
   // Add any incomplete standalone tools
   for (const tool of standaloneTools.values()) {
-    elements.push({ type: 'tool', content: tool });
+    if (!tool.isComplete) {
+      elements.push({ type: 'tool', content: tool });
+    }
   }
 
   return elements;
@@ -444,9 +475,7 @@ export const ChatMessage = memo(function ChatMessage({ message, isStreaming = fa
               {isUser ? 'You' : 'Travel Assistant'}
             </span>
             {message.createdAt && (
-              <span className="text-xs text-gray-500">
-                {message.createdAt.toLocaleTimeString()}
-              </span>
+              <ClientTimestamp date={message.createdAt} />
             )}
           </div>
 
@@ -458,7 +487,7 @@ export const ChatMessage = memo(function ChatMessage({ message, isStreaming = fa
               </div>
             ) : (
               // Assistant messages with tool status and markdown rendering
-              <div className="text-gray-900 leading-relaxed break-words">
+              <div className="text-gray-900 leading-relaxed break-words space-y-2">
                 {parsedContent.map((element, index) => {
                   if (element.type === 'status') {
                     return <StatusMessage key={index} content={element.content} />;

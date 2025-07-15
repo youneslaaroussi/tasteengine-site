@@ -7,7 +7,7 @@ import { trackChatEvent, trackUserEngagement } from '@/lib/gtag';
 interface ChatInputProps {
   input: string;
   setInput: (value: string) => void;
-  handleSubmit: (e: React.FormEvent) => void;
+  handleSubmit: (e?: React.FormEvent<HTMLFormElement>) => void;
   isLoading: boolean;
   onStop?: () => void;
   placeholder?: string;
@@ -98,7 +98,7 @@ export const ChatInput = memo(forwardRef<ChatInputRef, ChatInputProps>(function 
           message_length: input.trim().length,
           input_method: 'keyboard',
         });
-        handleSubmit(e as any);
+        handleSubmit();
       }
     }
   }, [input, isLoading, handleSubmit]);
@@ -129,13 +129,14 @@ export const ChatInput = memo(forwardRef<ChatInputRef, ChatInputProps>(function 
               onClick={isLoading ? () => {
                 trackUserEngagement('stop_generation', 'chat_input');
                 onStop?.();
-              } : (e) => {
+              } : () => {
                 if (input.trim()) {
                   trackChatEvent('user_message_submit', {
                     message_type: 'user_message',
                     message_length: input.trim().length,
                     input_method: 'button',
                   });
+                  handleSubmit();
                 }
               }}
               size="sm"

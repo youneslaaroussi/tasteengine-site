@@ -17,7 +17,7 @@ export default function Home() {
   };
 
   return (
-    <main className="h-screen bg-white flex flex-col">
+    <main className="h-dvh bg-white flex flex-col">
       <ChatHeader onNewChat={handleNewChat} onLoadSession={handleLoadSession} />
       <div className="flex-1 overflow-hidden">
         <ChatInterface ref={chatRef} />
