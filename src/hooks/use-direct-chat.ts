@@ -6,6 +6,7 @@ import { useChat, CreateMessage, Message } from '@ai-sdk/react';
 export function useDirectChat({ initialMessages }: { initialMessages: CreateMessage[] }) {
   const [activeTools, setActiveTools] = useState(new Set<string>());
   const [isStreaming, setIsStreaming] = useState(false);
+  const [abortController, setAbortController] = useState<AbortController | null>(null);
 
   // Use the AI SDK useChat hook for state management
   const { messages, setMessages, input, setInput, handleInputChange } = useChat({
@@ -19,7 +20,7 @@ export function useDirectChat({ initialMessages }: { initialMessages: CreateMess
   // Custom handleSubmit to call the backend directly
   const handleSubmit = useCallback(async (e?: React.FormEvent<HTMLFormElement>) => {
     e?.preventDefault();
-    if (!input) return;
+    if (!input || isStreaming) return;
 
     // Add user message to the chat
     const userMessage: Message = { id: Date.now().toString(), role: 'user', content: input, createdAt: new Date() };
@@ -31,11 +32,17 @@ export function useDirectChat({ initialMessages }: { initialMessages: CreateMess
     
     setIsStreaming(true);
 
+    // Create abort controller for this request
+    const controller = new AbortController();
+    setAbortController(controller);
+
     // Prepare the request for the backend
     const backendRequest = {
       message: currentInput,
       conversationHistory: [...messages.map(m => ({role: m.role, content: m.content})), { role: 'user', content: currentInput }],
     };
+
+    let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
 
     try {
       // Make request to the backend stream endpoint
@@ -43,13 +50,14 @@ export function useDirectChat({ initialMessages }: { initialMessages: CreateMess
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(backendRequest),
+        signal: controller.signal,
       });
 
       if (!response.ok || !response.body) {
         throw new Error(`Backend responded with ${response.status}`);
       }
 
-      const reader = response.body.getReader();
+      reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
       let assistantMessage = '';
@@ -97,8 +105,8 @@ export function useDirectChat({ initialMessages }: { initialMessages: CreateMess
                 });
                 let toolMarkdown = `{% ${data.toolName}_complete "${data.content}" %}\n\n`;
                 
-                // If there's data field, append the JSON so the parser can find it
-                if (data.data) {
+                // Only append JSON if it's a flight itinerary
+                if (data.data && data.toolName === 'create_flight_itinerary') {
                   toolMarkdown += JSON.stringify(data.data, null, 2) + '\n\n';
                 }
                 
@@ -117,14 +125,34 @@ export function useDirectChat({ initialMessages }: { initialMessages: CreateMess
         }
       }
     } catch (error) {
-      console.error('Direct chat error:', error);
-      // Handle error case, maybe show an error message to the user
-      setMessages(prev => [...prev, { id: Date.now().toString(), role: 'assistant', content: "I'm sorry, I encountered an error. Please try again.", createdAt: new Date() }]);
+      // Don't show error message if it was aborted by user
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.log('Request was aborted by user');
+      } else {
+        console.error('Direct chat error:', error);
+        // Handle error case, maybe show an error message to the user
+        setMessages(prev => [...prev, { id: Date.now().toString(), role: 'assistant', content: "I'm sorry, I encountered an error. Please try again.", createdAt: new Date() }]);
+      }
     } finally {
+      // Clean up reader if it exists
+      if (reader) {
+        try {
+          await reader.cancel();
+        } catch (e) {
+          // Ignore errors when canceling reader
+        }
+      }
       setIsStreaming(false);
       setActiveTools(new Set());
+      setAbortController(null);
     }
-  }, [input, messages, setMessages, setInput]);
+  }, [input, messages, setMessages, setInput, isStreaming]);
+
+  const stop = useCallback(() => {
+    if (abortController) {
+      abortController.abort();
+    }
+  }, [abortController]);
 
   return { 
     messages, 
@@ -132,7 +160,7 @@ export function useDirectChat({ initialMessages }: { initialMessages: CreateMess
     handleInputChange, 
     handleSubmit, 
     isLoading: isStreaming, 
-    stop: () => {}, // Implement stop functionality if needed
+    stop,
     setInput, 
     setMessages, 
     activeTools 

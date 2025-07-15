@@ -111,9 +111,23 @@ export const FlightItineraryCard = memo(function FlightItineraryCard({
 
     setIsLoading(true);
 
-    // Set canvas size
+    // Calculate proper height based on content
     const width = 600;
-    const height = Math.max(400, 200 + (itinerary.flights.length * 120));
+    let estimatedHeight = 100; // Top margin and header
+    estimatedHeight += 120; // Trip info section
+    estimatedHeight += 100; // Summary section
+    estimatedHeight += 40; // Flight details header
+    estimatedHeight += itinerary.flights.length * 140; // Flights (140px per flight)
+    
+    // Add height for notes if they exist
+    if (itinerary.notes) {
+      const noteLines = Math.ceil(itinerary.notes.length / 60); // ~60 chars per line
+      estimatedHeight += 80 + (noteLines * 15); // Notes header + lines
+    }
+    
+    estimatedHeight += 80; // Footer
+    
+    const height = Math.max(estimatedHeight, 500);
     
     canvas.width = width;
     canvas.height = height;
@@ -124,175 +138,216 @@ export const FlightItineraryCard = memo(function FlightItineraryCard({
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, width, height);
 
-    let currentY = 30;
+    const margin = 40;
+    let currentY = margin;
 
-    // Header
+    // Header - Receipt style
     addText(ctx, 'FLIGHT ITINERARY', width / 2, currentY, {
-      fontSize: 24,
+      fontSize: 18,
       fontWeight: 'bold',
       textAlign: 'center',
-      fill: '#1a1a1a'
+      fontFamily: 'JetBrains Mono, monospace'
     });
 
-    currentY += 40;
+    currentY += 30;
+    // Header line
+    addLine(ctx, margin, currentY, width - margin, currentY, { strokeWidth: 2 });
+    currentY += 25;
 
-    // Trip details
-    addText(ctx, `Trip: ${itinerary.tripName}`, 40, currentY, {
-      fontSize: 16,
-      fontWeight: 'bold'
+    // Trip and traveler info - Receipt style
+    addText(ctx, `TRIP: ${itinerary.tripName}`, margin, currentY, {
+      fontSize: 12,
+      fontWeight: 'bold',
+      fontFamily: 'JetBrains Mono, monospace'
+    });
+    currentY += 20;
+
+    addText(ctx, `PASSENGER: ${itinerary.travelerName}`, margin, currentY, {
+      fontSize: 12,
+      fontFamily: 'JetBrains Mono, monospace'
+    });
+    currentY += 20;
+
+    addText(ctx, `DATE: ${new Date(itinerary.createdAt).toLocaleDateString()}`, margin, currentY, {
+      fontSize: 12,
+      fontFamily: 'JetBrains Mono, monospace'
+    });
+    currentY += 20;
+
+    addText(ctx, `REF: ${itinerary.id || 'N/A'}`, margin, currentY, {
+      fontSize: 12,
+      fontFamily: 'JetBrains Mono, monospace'
+    });
+    currentY += 30;
+
+    // Summary section - Receipt style
+    addLine(ctx, margin, currentY, width - margin, currentY, { stroke: '#666666' });
+    currentY += 20;
+
+    addText(ctx, 'SUMMARY', margin, currentY, {
+      fontSize: 12,
+      fontWeight: 'bold',
+      fontFamily: 'JetBrains Mono, monospace'
     });
     currentY += 25;
 
-    addText(ctx, `Traveler: ${itinerary.travelerName}`, 40, currentY, {
-      fontSize: 14
+    // Summary items - Receipt style with right alignment
+    const summaryItems = [
+      [`FLIGHTS:`, `${itinerary.summary.totalFlights}`],
+      [`ROUTE:`, `${itinerary.summary.origins} → ${itinerary.summary.destinations}`],
+      [`TOTAL:`, `${itinerary.summary.currency} ${itinerary.summary.totalPrice}`]
+    ];
+
+    summaryItems.forEach(([label, value]) => {
+      addText(ctx, label, margin, currentY, {
+        fontSize: 11,
+        fontFamily: 'JetBrains Mono, monospace'
+      });
+      addText(ctx, value, width - margin, currentY, {
+        fontSize: 11,
+        fontFamily: 'JetBrains Mono, monospace',
+        textAlign: 'right'
+      });
+      currentY += 18;
     });
+
+    currentY += 15;
+
+    // Flights section
+    addLine(ctx, margin, currentY, width - margin, currentY, { stroke: '#666666' });
     currentY += 20;
 
-    addText(ctx, `Created: ${new Date(itinerary.createdAt).toLocaleDateString()}`, 40, currentY, {
+    addText(ctx, 'FLIGHT DETAILS', margin, currentY, {
       fontSize: 12,
-      fill: '#666666'
-    });
-
-    // Summary box
-    currentY += 40;
-    ctx.strokeStyle = '#e5e5e5';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(40, currentY - 15, width - 80, 60);
-
-    addText(ctx, `Total Flights: ${itinerary.summary.totalFlights}`, 50, currentY, {
-      fontSize: 12
-    });
-    currentY += 20;
-
-    addText(ctx, `Total Price: ${itinerary.summary.currency} ${itinerary.summary.totalPrice}`, 50, currentY, {
-      fontSize: 14,
       fontWeight: 'bold',
-      fill: '#2563eb'
+      fontFamily: 'JetBrains Mono, monospace'
     });
+    currentY += 25;
 
-    addText(ctx, `Route: ${itinerary.summary.origins} → ${itinerary.summary.destinations}`, 300, currentY - 20, {
-      fontSize: 12
-    });
-
-    currentY += 40;
-
-    // Flights
     itinerary.flights.forEach((flight, index) => {
-      // Flight separator line
-      if (index > 0) {
-        addDashedLine(ctx, 40, currentY, width - 40, currentY);
-        currentY += 20;
-      }
-
-      // Flight number and airline
-      addText(ctx, `Flight ${flight.sequence} - ${flight.airline}`, 40, currentY, {
-        fontSize: 16,
-        fontWeight: 'bold'
-      });
-
-      addText(ctx, `${flight.aircraft} | ${flight.bookingClass} Class`, 400, currentY, {
-        fontSize: 12,
-        fill: '#666666'
-      });
-
-      currentY += 25;
-
-      // Route
-      addText(ctx, flight.origin.code, 40, currentY, {
-        fontSize: 20,
-        fontWeight: 'bold'
-      });
-
-      addText(ctx, flight.origin.city, 40, currentY + 18, {
-        fontSize: 12,
-        fill: '#666666'
-      });
-
-      // Arrow
-      addText(ctx, '→', 150, currentY, {
-        fontSize: 24,
-        textAlign: 'center'
-      });
-
-      addText(ctx, flight.destination.code, 220, currentY, {
-        fontSize: 20,
-        fontWeight: 'bold'
-      });
-
-      addText(ctx, flight.destination.city, 220, currentY + 18, {
-        fontSize: 12,
-        fill: '#666666'
-      });
-
-      // Times
-      addText(ctx, `Departure: ${flight.departure.time}`, 350, currentY, {
-        fontSize: 12
-      });
-
-      addText(ctx, `Arrival: ${flight.arrival.time}`, 350, currentY + 15, {
-        fontSize: 12
-      });
-
-      currentY += 40;
-
-      // Duration and price
-      addText(ctx, `Duration: ${flight.duration}`, 40, currentY, {
-        fontSize: 12
-      });
-
-      addText(ctx, `Stops: ${flight.stops}`, 150, currentY, {
-        fontSize: 12
-      });
-
-      addText(ctx, `${flight.price.currency} ${flight.price.amount}`, 450, currentY, {
-        fontSize: 14,
+      // Flight header - airline and price
+      addText(ctx, `${flight.sequence}. ${flight.airline}`, margin, currentY, {
+        fontSize: 11,
         fontWeight: 'bold',
-        fill: '#2563eb'
+        fontFamily: 'JetBrains Mono, monospace'
       });
 
-      currentY += 30;
+      addText(ctx, `${flight.price.currency} ${flight.price.amount}`, width - margin, currentY, {
+        fontSize: 11,
+        fontWeight: 'bold',
+        fontFamily: 'JetBrains Mono, monospace',
+        textAlign: 'right'
+      });
+      currentY += 18;
+
+      // Aircraft and class
+      addText(ctx, `   ${flight.aircraft} • ${flight.bookingClass}`, margin, currentY, {
+        fontSize: 10,
+        fontFamily: 'JetBrains Mono, monospace',
+        fill: '#666666'
+      });
+      currentY += 15;
+
+      // Route details - Receipt style
+      const routeDetails = [
+        [`   FROM:`, `${flight.origin.code} - ${flight.origin.city}`],
+        [`   `, `${flight.departure.time} ${flight.departure.date}`],
+        [`   TO:`, `${flight.destination.code} - ${flight.destination.city}`],
+        [`   `, `${flight.arrival.time} ${flight.arrival.date}`],
+        [`   STOPS:`, flight.stops === 0 ? 'Direct Flight' : `${flight.stops} stop${flight.stops > 1 ? 's' : ''}`]
+      ];
+
+      routeDetails.forEach(([label, value]) => {
+        if (label.trim()) {
+          addText(ctx, label, margin, currentY, {
+            fontSize: 9,
+            fontFamily: 'JetBrains Mono, monospace',
+            fill: '#666666'
+          });
+          addText(ctx, value, margin + 80, currentY, {
+            fontSize: 9,
+            fontFamily: 'JetBrains Mono, monospace'
+          });
+        } else {
+          addText(ctx, value, margin + 80, currentY, {
+            fontSize: 9,
+            fontFamily: 'JetBrains Mono, monospace',
+            fill: '#666666'
+          });
+        }
+        currentY += 14;
+      });
+
+      // Space between flights
+      if (index < itinerary.flights.length - 1) {
+        currentY += 15;
+        addLine(ctx, margin + 10, currentY, width - margin - 10, currentY, {
+          stroke: '#cccccc',
+          strokeWidth: 1
+        });
+        currentY += 15;
+      }
     });
 
-    // Notes
+    // Notes section if exists
     if (itinerary.notes) {
       currentY += 20;
-      addLine(ctx, 40, currentY, width - 40, currentY, {
-        stroke: '#e5e5e5'
+      addLine(ctx, margin, currentY, width - margin, currentY, { stroke: '#666666' });
+      currentY += 20;
+
+      addText(ctx, 'NOTES', margin, currentY, {
+        fontSize: 12,
+        fontWeight: 'bold',
+        fontFamily: 'JetBrains Mono, monospace'
       });
       currentY += 25;
 
-      addText(ctx, 'Notes:', 40, currentY, {
-        fontSize: 14,
-        fontWeight: 'bold'
-      });
-      currentY += 20;
-
-      // Split notes into lines if too long
-      const maxWidth = width - 80;
+      // Word wrap notes - receipt style
       const words = itinerary.notes.split(' ');
       let line = '';
-      
-      for (const word of words) {
-        const testLine = line + word + ' ';
-        const metrics = ctx.measureText(testLine);
-        
-        if (metrics.width > maxWidth && line !== '') {
-          addText(ctx, line.trim(), 40, currentY, {
-            fontSize: 12
+      const maxChars = 60; // Characters per line for receipt
+
+      words.forEach(word => {
+        const testLine = line + (line ? ' ' : '') + word;
+        if (testLine.length > maxChars && line) {
+          addText(ctx, line, margin, currentY, {
+            fontSize: 10,
+            fontFamily: 'JetBrains Mono, monospace'
           });
-          currentY += 18;
-          line = word + ' ';
+          currentY += 15;
+          line = word;
         } else {
           line = testLine;
         }
-      }
-      
-      if (line.trim()) {
-        addText(ctx, line.trim(), 40, currentY, {
-          fontSize: 12
+      });
+
+      if (line) {
+        addText(ctx, line, margin, currentY, {
+          fontSize: 10,
+          fontFamily: 'JetBrains Mono, monospace'
         });
+        currentY += 25;
       }
     }
+
+    // Footer - Receipt style
+    currentY += 20;
+    addLine(ctx, margin, currentY, width - margin, currentY, { stroke: '#666666' });
+    currentY += 15;
+
+    addText(ctx, 'Generated by GoFlyTo Travel Assistant', margin, currentY, {
+      fontSize: 8,
+      fontFamily: 'JetBrains Mono, monospace',
+      fill: '#666666'
+    });
+
+    currentY += 15;
+    addText(ctx, 'THANK YOU FOR CHOOSING OUR SERVICE', width / 2, currentY, {
+      fontSize: 9,
+      fontFamily: 'JetBrains Mono, monospace',
+      textAlign: 'center',
+      fill: '#666666'
+    });
 
     setIsLoading(false);
   };
