@@ -8,6 +8,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { useEffect, useRef, useMemo, useCallback, useState, useImperativeHandle, forwardRef } from 'react';
 import { ChevronDown } from 'lucide-react';
+import { useChatHistory } from '@/hooks/use-chat-history';
+import { ChatSession } from '@/types/chat-history';
 
 // Move initial messages outside component to prevent recreation on every render
 const INITIAL_MESSAGES = [
@@ -20,6 +22,7 @@ const INITIAL_MESSAGES = [
 
 export interface ChatInterfaceRef {
   resetChat: () => void;
+  loadSession: (session: ChatSession) => void;
 }
 
 export const ChatInterface = forwardRef<ChatInterfaceRef>((props, ref) => {
@@ -27,6 +30,8 @@ export const ChatInterface = forwardRef<ChatInterfaceRef>((props, ref) => {
     api: '/api/chat',
     initialMessages: INITIAL_MESSAGES,
   });
+
+  const { updateCurrentSession, createNewSession, currentSession, loadSession: loadSessionFromHistory } = useChatHistory();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -162,6 +167,20 @@ export const ChatInterface = forwardRef<ChatInterfaceRef>((props, ref) => {
     return () => clearTimeout(timer);
   }, [scrollToBottomSmooth]);
 
+  // Save messages to localStorage when they change
+  useEffect(() => {
+    if (messages.length > 1) { // Only save if there are messages beyond the initial welcome message
+      const messageData = messages
+        .filter(msg => msg.role === 'user' || msg.role === 'assistant')
+        .map(msg => ({
+          id: msg.id,
+          role: msg.role as 'user' | 'assistant',
+          content: msg.content,
+        }));
+      updateCurrentSession(messageData);
+    }
+  }, [messages, updateCurrentSession]);
+
   // Check if there are any user messages
   const hasUserMessages = useMemo(() => {
     return messages.some(message => message.role === 'user');
@@ -205,6 +224,9 @@ export const ChatInterface = forwardRef<ChatInterfaceRef>((props, ref) => {
     // Clear input
     setInput('');
     
+    // Create new session (this will automatically update the current session)
+    createNewSession();
+    
     // Reset scroll position
     setTimeout(() => {
       scrollToBottomSmooth();
@@ -214,11 +236,37 @@ export const ChatInterface = forwardRef<ChatInterfaceRef>((props, ref) => {
     setTimeout(() => {
       chatInputRef.current?.focus();
     }, 200);
-  }, [stop, setMessages, setInput, scrollToBottomSmooth]);
+  }, [stop, setMessages, setInput, createNewSession, scrollToBottomSmooth]);
 
-  // Expose resetChat function through ref
+  // Load session function
+  const loadSession = useCallback((session: ChatSession) => {
+    // Stop any ongoing requests
+    stop();
+    
+    // Load session in history
+    loadSessionFromHistory(session.id);
+    
+    // Load session messages
+    setMessages(session.messages);
+    
+    // Clear input
+    setInput('');
+    
+    // Reset scroll position
+    setTimeout(() => {
+      scrollToBottomSmooth();
+    }, 100);
+    
+    // Focus input
+    setTimeout(() => {
+      chatInputRef.current?.focus();
+    }, 200);
+  }, [stop, loadSessionFromHistory, setMessages, setInput, scrollToBottomSmooth]);
+
+  // Expose functions through ref
   useImperativeHandle(ref, () => ({
     resetChat,
+    loadSession,
   }));
 
   return (

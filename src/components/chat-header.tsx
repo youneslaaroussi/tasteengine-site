@@ -13,15 +13,18 @@ import { Plane, Plus, LogIn, UserPlus, Menu } from 'lucide-react';
 import { LoginModal, SignupModal } from './auth-modals';
 import { CountrySelector } from './country-selector';
 import { CountryPreloader } from './country-preloader';
+import { ChatHistorySidebar } from './chat-history-sidebar';
+import { ChatSession } from '@/types/chat-history';
 
 import Image from 'next/image';
 import logo from '@/assets/app-logo.png';
 
 interface ChatHeaderProps {
   onNewChat: () => void;
+  onLoadSession: (session: ChatSession) => void;
 }
 
-export function ChatHeader({ onNewChat }: ChatHeaderProps) {
+export function ChatHeader({ onNewChat, onLoadSession }: ChatHeaderProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const handleNewChat = () => {
@@ -34,6 +37,7 @@ export function ChatHeader({ onNewChat }: ChatHeaderProps) {
       <CountryPreloader />
       <div className="flex items-center justify-between px-4 sm:px-6 py-4">
         <div className="flex items-center gap-3">
+          <ChatHistorySidebar onNewChat={onNewChat} onLoadSession={onLoadSession} />
           <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center overflow-hidden">
             <Image src={logo} alt="GoFlyTo" width={64} height={64} />
           </div>
