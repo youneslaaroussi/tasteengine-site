@@ -3,6 +3,7 @@
 import { useChat } from '@ai-sdk/react';
 import { ChatMessage } from './chat-message';
 import { ChatInput, ChatInputRef } from './chat-input';
+import { PromptCards } from './prompt-cards';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { useEffect, useRef, useMemo, useCallback, useState, useImperativeHandle, forwardRef } from 'react';
@@ -161,6 +162,27 @@ export const ChatInterface = forwardRef<ChatInterfaceRef>((props, ref) => {
     return () => clearTimeout(timer);
   }, [scrollToBottomSmooth]);
 
+  // Check if there are any user messages
+  const hasUserMessages = useMemo(() => {
+    return messages.some(message => message.role === 'user');
+  }, [messages]);
+
+  // Handle prompt card clicks
+  const handlePromptClick = useCallback((prompt: string) => {
+    setInput(prompt);
+    
+    // Auto-submit the prompt after a brief delay
+    setTimeout(() => {
+      if (chatInputRef.current) {
+        const mockEvent = {
+          preventDefault: () => {},
+          currentTarget: { elements: { message: { value: prompt } } }
+        } as any;
+        handleSubmit(mockEvent);
+      }
+    }, 100);
+  }, [setInput, handleSubmit]);
+
   // Memoize the messages rendering to prevent unnecessary re-renders
   const renderedMessages = useMemo(() => {
     return messages.map((message, index) => (
@@ -206,6 +228,14 @@ export const ChatInterface = forwardRef<ChatInterfaceRef>((props, ref) => {
         <ScrollArea ref={scrollAreaRef} className="h-full">
           <div className="max-w-3xl mx-auto">
             {renderedMessages}
+            
+            {/* Show prompt cards only when there are no user messages */}
+            {!hasUserMessages && !isLoading && (
+              <div className="mt-8 mb-8">
+                <PromptCards onPromptClick={handlePromptClick} />
+              </div>
+            )}
+            
             <div ref={messagesEndRef} />
           </div>
         </ScrollArea>

@@ -11,6 +11,11 @@ import {
 } from '@/components/ui/sheet';
 import { Plane, Plus, LogIn, UserPlus, Menu } from 'lucide-react';
 import { LoginModal, SignupModal } from './auth-modals';
+import { CountrySelector } from './country-selector';
+import { CountryPreloader } from './country-preloader';
+
+import Image from 'next/image';
+import logo from '@/assets/app-logo.png';
 
 interface ChatHeaderProps {
   onNewChat: () => void;
@@ -26,17 +31,18 @@ export function ChatHeader({ onNewChat }: ChatHeaderProps) {
 
   return (
     <header className="border-b border-gray-200 bg-white">
+      <CountryPreloader />
       <div className="flex items-center justify-between px-4 sm:px-6 py-4">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-            <Plane className="w-5 h-5 text-white" />
+          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center overflow-hidden">
+            <Image src={logo} alt="GoFlyTo" width={64} height={64} />
           </div>
           <h1 className="text-lg sm:text-xl font-semibold text-gray-900">
             <span className="hidden sm:inline">Travel Assistant</span>
             <span className="sm:hidden">Travel</span>
           </h1>
         </div>
-        
+
         {/* Desktop Navigation */}
         <div className="hidden md:flex items-center gap-3">
           <LoginModal>
@@ -45,16 +51,20 @@ export function ChatHeader({ onNewChat }: ChatHeaderProps) {
               Sign In
             </Button>
           </LoginModal>
-          
+
           <SignupModal>
             <Button variant="default" size="sm" className="flex items-center gap-2">
               <UserPlus className="w-4 h-4" />
               Sign Up
             </Button>
           </SignupModal>
-          
+
           <div className="w-px h-6 bg-gray-300" />
-          
+
+          <CountrySelector />
+
+          <div className="w-px h-6 bg-gray-300" />
+
           <Button
             onClick={onNewChat}
             variant="outline"
@@ -77,7 +87,7 @@ export function ChatHeader({ onNewChat }: ChatHeaderProps) {
             <Plus className="w-4 h-4" />
             <span className="hidden sm:inline">New Chat</span>
           </Button>
-          
+
           <Sheet open={isMenuOpen} onOpenChange={setIsMenuOpen}>
             <SheetTrigger asChild>
               <Button variant="ghost" size="sm" className="flex items-center gap-2">
@@ -96,7 +106,7 @@ export function ChatHeader({ onNewChat }: ChatHeaderProps) {
                   Your AI-powered travel planning companion
                 </p>
               </SheetHeader>
-              
+
               <div className="flex flex-col space-y-6 px-4">
                 {/* Account Section */}
                 <div className="space-y-3">
@@ -105,8 +115,8 @@ export function ChatHeader({ onNewChat }: ChatHeaderProps) {
                   </h3>
                   <div className="space-y-2">
                     <LoginModal onOpenChange={(open) => !open && setIsMenuOpen(false)}>
-                      <Button 
-                        variant="ghost" 
+                      <Button
+                        variant="ghost"
                         className="w-full justify-start flex items-center gap-3 h-11 px-3 hover:bg-gray-50 rounded-lg"
                       >
                         <div className="w-8 h-8 bg-blue-50 rounded-md flex items-center justify-center">
@@ -118,10 +128,10 @@ export function ChatHeader({ onNewChat }: ChatHeaderProps) {
                         </div>
                       </Button>
                     </LoginModal>
-                    
+
                     <SignupModal onOpenChange={(open) => !open && setIsMenuOpen(false)}>
-                      <Button 
-                        variant="default" 
+                      <Button
+                        variant="default"
                         className="w-full justify-start flex items-center gap-3 h-11 px-3 bg-blue-600 hover:bg-blue-700 rounded-lg"
                       >
                         <div className="w-8 h-8 bg-blue-500 rounded-md flex items-center justify-center">
@@ -135,10 +145,34 @@ export function ChatHeader({ onNewChat }: ChatHeaderProps) {
                     </SignupModal>
                   </div>
                 </div>
-                
+
                 {/* Divider */}
                 <div className="border-t border-gray-200" />
-                
+
+                {/* Settings Section */}
+                <div className="space-y-3">
+                  <h3 className="text-sm font-medium text-gray-900 px-3">
+                    Settings
+                  </h3>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between px-3 py-2 hover:bg-gray-50 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-blue-50 rounded-md flex items-center justify-center">
+                          <Plane className="w-4 h-4 text-blue-600" />
+                        </div>
+                        <div className="flex flex-col items-start">
+                          <span className="text-sm font-medium">Country</span>
+                          <span className="text-xs text-gray-500">For personalized results</span>
+                        </div>
+                      </div>
+                      <CountrySelector />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Divider */}
+                <div className="border-t border-gray-200" />
+
                 {/* Actions Section */}
                 <div className="space-y-3">
                   <h3 className="text-sm font-medium text-gray-900 px-3">
