@@ -24,6 +24,7 @@ declare module 'use-react-countries' {
     population: number;
     emoji: string;
     countryCallingCode: string;
+    cca2: string;
   }
 
   export function useCountries(): {
