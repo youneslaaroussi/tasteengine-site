@@ -1,5 +1,5 @@
 import { FlightItineraryCard } from './flight-itinerary-card';
-import { FlightSearchResults } from './booking-tool-results';
+import { ProgressiveFlightSearch } from './booking-tool-results';
 
 // Centralized tool result data extraction and attachment
 export interface ToolResultExtraction {
@@ -161,26 +161,60 @@ const toolResultExtractors = {
       if (!jsonText) return null;
 
       const fullData = JSON.parse(jsonText);
-      let bookingPayload = null;
+      let searchPayload = null;
 
       // Check wrapper structure
       const callIds = Object.keys(fullData).filter(key => key.startsWith('call_') || key.startsWith('toolu_'));
       if (callIds.length > 0) {
         const callData = fullData[callIds[0]];
         if (callData && callData.success && callData.result) {
-          bookingPayload = callData.result;
+          searchPayload = callData.result;
         }
       }
-      // Direct booking result
-      else if (fullData.searchId || fullData.flights) {
-        bookingPayload = fullData;
+      // Direct search result with search parameters instead of flights
+      else if (fullData.searchId || fullData.searchParams || fullData.origin) {
+        searchPayload = fullData;
       }
 
-      if (bookingPayload) {
-        return { resultData: bookingPayload, remainingText };
+      if (searchPayload) {
+        return { resultData: searchPayload, remainingText };
       }
     } catch (e) {
-      console.error('Error parsing booking data:', e);
+      console.error('Error parsing search data:', e);
+    }
+    return null;
+  },
+
+  'initiate_flight_search': (text: string): ToolResultExtraction | null => {
+    try {
+      const { json: jsonText, remaining: remainingText } = extractJsonWithRemainingText(text);
+      if (!jsonText) return null;
+
+      const fullData = JSON.parse(jsonText);
+      let searchInitiationPayload = null;
+
+      // Check wrapper structure
+      const callIds = Object.keys(fullData).filter(key => key.startsWith('call_') || key.startsWith('toolu_'));
+      if (callIds.length > 0) {
+        const callData = fullData[callIds[0]];
+        if (callData && callData.success) {
+          if (callData.searchId || callData.searchParams) {
+            searchInitiationPayload = callData;
+          } else if (callData.result) {
+            searchInitiationPayload = callData.result;
+          }
+        }
+      }
+      // Direct search initiation result
+      else if (fullData.searchId || fullData.searchParams || fullData.origin) {
+        searchInitiationPayload = fullData;
+      }
+
+      if (searchInitiationPayload) {
+        return { resultData: searchInitiationPayload, remainingText };
+      }
+    } catch (e) {
+      console.error('Error parsing search initiation data:', e);
     }
     return null;
   }
@@ -206,9 +240,18 @@ export function renderToolResult(toolName: string, resultData: any): React.React
       break;
 
     case 'search_bookable_flights':
-      if (resultData?.flights) {
+    case 'initiate_flight_search':
+      // Extract search parameters from result data
+      const searchParams = extractSearchParams(resultData);
+      if (searchParams) {
         return (
-          <FlightSearchResults data={resultData} />
+          <div className="mb-4">
+            <ProgressiveFlightSearch 
+              searchParams={searchParams}
+              searchData={resultData}
+              autoInitiate={true}
+            />
+          </div>
         );
       }
       break;
@@ -220,9 +263,119 @@ export function renderToolResult(toolName: string, resultData: any): React.React
   return null;
 }
 
+// Helper function to extract search parameters from various data structures
+function extractSearchParams(data: any): {
+  origin: string;
+  destination: string;
+  departureDate: string;
+  returnDate?: string;
+  passengers: number;
+  travelClass: string;
+} | null {
+  try {
+    // Direct search params object
+    if (data.searchParams) {
+      return {
+        origin: data.searchParams.origin || data.searchParams.from,
+        destination: data.searchParams.destination || data.searchParams.to,
+        departureDate: data.searchParams.departureDate || data.searchParams.departure_date,
+        returnDate: data.searchParams.returnDate || data.searchParams.return_date,
+        passengers: data.searchParams.passengers || data.searchParams.passenger_count || 1,
+        travelClass: data.searchParams.travelClass || data.searchParams.travel_class || 'economy'
+      };
+    }
+
+    // Direct properties in data
+    if (data.origin && data.destination && data.departureDate) {
+      return {
+        origin: data.origin,
+        destination: data.destination,
+        departureDate: data.departureDate,
+        returnDate: data.returnDate,
+        passengers: data.passengers || data.passenger_count || 1,
+        travelClass: data.travelClass || data.travel_class || 'economy'
+      };
+    }
+
+    // Search details object
+    if (data.searchDetails) {
+      const details = data.searchDetails;
+      return {
+        origin: details.origin || details.from,
+        destination: details.destination || details.to,
+        departureDate: details.departureDate || details.departure_date,
+        returnDate: details.returnDate || details.return_date,
+        passengers: details.passengers || details.passenger_count || 1,
+        travelClass: details.travelClass || details.travel_class || 'economy'
+      };
+    }
+
+    // Parse from message or description
+    if (data.message && typeof data.message === 'string') {
+      const params = parseSearchFromMessage(data.message);
+      if (params) return params;
+    }
+
+    return null;
+  } catch (e) {
+    console.error('Error extracting search parameters:', e);
+    return null;
+  }
+}
+
+// Helper to parse search parameters from natural language message
+function parseSearchFromMessage(message: string): {
+  origin: string;
+  destination: string;
+  departureDate: string;
+  returnDate?: string;
+  passengers: number;
+  travelClass: string;
+} | null {
+  try {
+    // Extract flight route (FROM to TO)
+    const routeMatch = message.match(/from\s+([A-Z]{3}|[A-Za-z\s]+)\s+to\s+([A-Z]{3}|[A-Za-z\s]+)/i);
+    if (!routeMatch) return null;
+
+    const origin = routeMatch[1].trim();
+    const destination = routeMatch[2].trim();
+
+    // Extract departure date
+    const departureDateMatch = message.match(/departing\s+(\d{4}-\d{2}-\d{2}|\w+\s+\d{1,2},?\s+\d{4})/i);
+    if (!departureDateMatch) return null;
+
+    const departureDate = departureDateMatch[1];
+
+    // Extract return date (optional)
+    const returnDateMatch = message.match(/returning\s+(\d{4}-\d{2}-\d{2}|\w+\s+\d{1,2},?\s+\d{4})/i);
+    const returnDate = returnDateMatch ? returnDateMatch[1] : undefined;
+
+    // Extract passengers
+    const passengersMatch = message.match(/(\d+)\s+passenger/i);
+    const passengers = passengersMatch ? parseInt(passengersMatch[1]) : 1;
+
+    // Extract travel class
+    const classMatch = message.match(/(economy|business|first)\s+class/i);
+    const travelClass = classMatch ? classMatch[1].toLowerCase() : 'economy';
+
+    return {
+      origin,
+      destination,
+      departureDate,
+      returnDate,
+      passengers,
+      travelClass
+    };
+  } catch (e) {
+    console.error('Error parsing search from message:', e);
+    return null;
+  }
+}
+
 // List of tools that should use the centralized result handling
 export const SPECIAL_RESULT_TOOLS = [
   'create_flight_itinerary',
   'search_bookable_flights',
-  'searchBookableFlights'
+  'searchBookableFlights',
+  'initiate_flight_search'
 ]; 

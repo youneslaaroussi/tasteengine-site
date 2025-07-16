@@ -110,6 +110,7 @@ export function useDirectChat({ initialMessages }: { initialMessages: CreateMess
                   'create_flight_itinerary',
                   'search_bookable_flights', 
                   'searchBookableFlights',
+                  'initiate_flight_search',
                   'validate_booking',
                   'validateBooking',
                   'create_booking',
