@@ -105,8 +105,24 @@ export function useDirectChat({ initialMessages }: { initialMessages: CreateMess
                 });
                 let toolMarkdown = `{% ${data.toolName}_complete "${data.content}" %}\n\n`;
                 
-                // Only append JSON if it's a flight itinerary
-                if (data.data && data.toolName === 'create_flight_itinerary') {
+                // Append JSON for flight itinerary and booking tools
+                const bookingTools = [
+                  'create_flight_itinerary',
+                  'search_bookable_flights', 
+                  'searchBookableFlights',
+                  'validate_booking',
+                  'validateBooking',
+                  'create_booking',
+                  'createBooking',
+                  'get_booking_status',
+                  'getBookingStatus',
+                  'cancel_booking',
+                  'cancelBooking',
+                  'create_affiliate_links',
+                  'createAffiliateLinks'
+                ];
+                
+                if (data.data && bookingTools.includes(data.toolName)) {
                   toolMarkdown += JSON.stringify(data.data, null, 2) + '\n\n';
                 }
                 
