@@ -382,7 +382,7 @@ export const ProgressiveFlightSearch = memo(function ProgressiveFlightSearch({
                                         isNewFlight && "animate-fade-in bg-green-50 border-green-200"
                                     )}
                                 >
-                                    <div className="flex items-center justify-between">
+                                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                                         <div className="flex-1 space-y-3">
                                             {/* Flight Route and Times */}
                                             <div className="flex items-center gap-4">
@@ -445,7 +445,7 @@ export const ProgressiveFlightSearch = memo(function ProgressiveFlightSearch({
                                         </div>
 
                                         {/* Price and Booking */}
-                                        <div className="ml-6 text-right space-y-3">
+                                        <div className="w-full sm:w-auto sm:ml-6 text-center sm:text-right space-y-3">
                                             <div>
                                                 <div className="text-2xl font-bold text-gray-900">
                                                     {flight.currency} {flight.price}
