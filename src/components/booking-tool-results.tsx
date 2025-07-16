@@ -1,4 +1,4 @@
-import { memo, useState, useRef } from 'react';
+import { memo, useState, useRef, useEffect } from 'react';
 import {
     Plane,
     Clock,
@@ -13,7 +13,9 @@ import {
     Mail,
     Phone,
     Home,
-    Loader2
+    Loader2,
+    ArrowUpDown,
+    ChevronDown
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -85,6 +87,15 @@ interface AgentResponse {
     };
 }
 
+// Add sorting types
+type SortOption = 'price' | 'duration' | 'departure' | 'airline';
+type SortDirection = 'asc' | 'desc';
+
+interface SortConfig {
+    option: SortOption;
+    direction: SortDirection;
+}
+
 // Main Progressive Flight Search Component
 interface ProgressiveFlightSearchProps {
     searchParams: {
@@ -139,11 +150,91 @@ export const ProgressiveFlightSearch = memo(function ProgressiveFlightSearch({
         };
     });
 
+    // Sorting state
+    const [sortConfig, setSortConfig] = useState<SortConfig>({
+        option: 'price',
+        direction: 'asc'
+    });
+    const [showSortDropdown, setShowSortDropdown] = useState(false);
+    const sortDropdownRef = useRef<HTMLDivElement>(null);
+
     // Polling control
     const pollingRef = useRef<NodeJS.Timeout | null>(null);
     const [pollingInterval] = useState(6000); // 6 seconds default
     const [loadingFlightId, setLoadingFlightId] = useState<string | null>(null);
     const cleanupRef = useRef<(() => void) | null>(null);
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (sortDropdownRef.current && !sortDropdownRef.current.contains(event.target as Node)) {
+                setShowSortDropdown(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, []);
+
+    // Sorting functions
+    const sortFlights = (flights: FlightOption[], config: SortConfig): FlightOption[] => {
+        return [...flights].sort((a, b) => {
+            let aValue: any;
+            let bValue: any;
+
+            switch (config.option) {
+                case 'price':
+                    aValue = a.price;
+                    bValue = b.price;
+                    break;
+                case 'duration':
+                    // Convert duration string to minutes for comparison
+                    aValue = parseDuration(a.duration);
+                    bValue = parseDuration(b.duration);
+                    break;
+                case 'departure':
+                    aValue = new Date(`${a.departureDate} ${a.departureTime}`).getTime();
+                    bValue = new Date(`${b.departureDate} ${b.departureTime}`).getTime();
+                    break;
+                case 'airline':
+                    aValue = a.airline.toLowerCase();
+                    bValue = b.airline.toLowerCase();
+                    break;
+                default:
+                    return 0;
+            }
+
+            if (config.direction === 'asc') {
+                return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
+            } else {
+                return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
+            }
+        });
+    };
+
+    const parseDuration = (duration: string): number => {
+        // Parse duration string like "2h 30m" or "1h 15m" to minutes
+        const match = duration.match(/(\d+)h\s*(\d+)?m?/);
+        if (match) {
+            const hours = parseInt(match[1]) || 0;
+            const minutes = parseInt(match[2]) || 0;
+            return hours * 60 + minutes;
+        }
+        return 0;
+    };
+
+    const handleSortChange = (option: SortOption) => {
+        setSortConfig(prev => ({
+            option,
+            direction: prev.option === option && prev.direction === 'asc' ? 'desc' : 'asc'
+        }));
+        setShowSortDropdown(false);
+    };
+
+    // Get sorted flights
+    const sortedFlights = sortFlights(searchState.flights, sortConfig);
 
     // STEP 1: Progressive Polling for Results
     const startProgressivePolling = (targetSearchId: string) => {
@@ -357,20 +448,70 @@ export const ProgressiveFlightSearch = memo(function ProgressiveFlightSearch({
             {/* Progressive Flight Results */}
             {searchState.flights.length > 0 && (
                 <div className="space-y-4">
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                         <h3 className="text-lg font-semibold text-gray-900">
                             Flight Results ({searchState.flights.length} flights)
                         </h3>
-                        {searchState.isSearching && (
-                            <div className="flex items-center text-blue-600">
-                                <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                                Loading more flights...
+                        
+                        <div className="flex items-center gap-3">
+                            {searchState.isSearching && (
+                                <div className="flex items-center text-blue-600">
+                                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                                    Loading more flights...
+                                </div>
+                            )}
+                            
+                            {/* Sort Dropdown */}
+                            <div className="relative" ref={sortDropdownRef}>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setShowSortDropdown(!showSortDropdown)}
+                                    className="flex items-center gap-2 min-w-[120px]"
+                                >
+                                    <ArrowUpDown className="w-4 h-4" />
+                                    <span className="hidden sm:inline">Sort by</span>
+                                    <span className="capitalize">
+                                        {sortConfig.option === 'departure' ? 'Time' : sortConfig.option}
+                                    </span>
+                                    <ChevronDown className="w-4 h-4" />
+                                </Button>
+                                
+                                {showSortDropdown && (
+                                    <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-10">
+                                        <div className="py-1">
+                                            {[
+                                                { value: 'price', label: 'Price', icon: '💰' },
+                                                { value: 'duration', label: 'Duration', icon: '⏱️' },
+                                                { value: 'departure', label: 'Departure Time', icon: '🕐' },
+                                                { value: 'airline', label: 'Airline', icon: '✈️' }
+                                            ].map((option) => (
+                                                <button
+                                                    key={option.value}
+                                                    onClick={() => handleSortChange(option.value as SortOption)}
+                                                    className={cn(
+                                                        "w-full px-4 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2",
+                                                        sortConfig.option === option.value && "bg-blue-50 text-blue-600"
+                                                    )}
+                                                >
+                                                    <span>{option.icon}</span>
+                                                    <span>{option.label}</span>
+                                                    {sortConfig.option === option.value && (
+                                                        <span className="ml-auto text-xs">
+                                                            {sortConfig.direction === 'asc' ? '↑' : '↓'}
+                                                        </span>
+                                                    )}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
-                        )}
+                        </div>
                     </div>
 
                     <div className="space-y-3 max-h-96 overflow-y-auto">
-                        {searchState.flights.map((flight, index) => {
+                        {sortedFlights.map((flight, index) => {
                             const isLoading = loadingFlightId === flight.id;
                             const isNewFlight = index >= searchState.flights.length - 3;
 
@@ -378,101 +519,144 @@ export const ProgressiveFlightSearch = memo(function ProgressiveFlightSearch({
                                 <Card 
                                     key={flight.id} 
                                     className={cn(
-                                        "p-4 hover:shadow-md transition-all duration-500",
+                                        "p-3 sm:p-4 hover:shadow-md transition-all duration-500",
                                         isNewFlight && "animate-fade-in bg-green-50 border-green-200"
                                     )}
                                 >
-                                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                                        <div className="flex-1 space-y-3">
-                                            {/* Flight Route and Times */}
-                                            <div className="flex items-center gap-4">
-                                                <div className="text-center">
-                                                    <div className="text-lg font-bold text-gray-900">{flight.origin}</div>
-                                                    <div className="text-sm font-medium text-blue-600">{flight.departureTime}</div>
-                                                </div>
+                                    <div className="flex flex-col gap-4">
+                                        {/* Mobile-first layout: Price at top on mobile */}
+                                        <div className="flex items-center justify-between sm:hidden">
+                                            <div className="text-xl font-bold text-gray-900">
+                                                {flight.currency} {flight.price}
+                                            </div>
+                                            <div className="text-xs text-gray-500">per person</div>
+                                        </div>
 
-                                                <div className="flex-1 flex items-center gap-2">
-                                                    <div className="flex-1 h-px bg-gray-300 relative">
-                                                        <div className="absolute inset-0 flex items-center justify-center">
-                                                            <div className="bg-white px-2 text-xs text-gray-500">
-                                                                {flight.duration}
+                                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                                            <div className="flex-1 space-y-3">
+                                                {/* Flight Route and Times */}
+                                                <div className="flex items-center gap-2 sm:gap-4">
+                                                    <div className="text-center min-w-0 flex-shrink-0">
+                                                        <div className="text-base sm:text-lg font-bold text-gray-900">{flight.origin}</div>
+                                                        <div className="text-xs sm:text-sm font-medium text-blue-600">{flight.departureTime}</div>
+                                                    </div>
+
+                                                    <div className="flex-1 flex items-center gap-1 sm:gap-2 min-w-0">
+                                                        <div className="flex-1 h-px bg-gray-300 relative">
+                                                            <div className="absolute inset-0 flex items-center justify-center">
+                                                                <div className="bg-white px-1 sm:px-2 text-xs text-gray-500 whitespace-nowrap">
+                                                                    {flight.duration}
+                                                                </div>
                                                             </div>
                                                         </div>
+                                                        {flight.stops > 0 && (
+                                                            <div className="text-xs text-orange-600 font-medium whitespace-nowrap">
+                                                                {flight.stops} stop{flight.stops > 1 ? 's' : ''}
+                                                            </div>
+                                                        )}
+                                                        {flight.stops === 0 && (
+                                                            <div className="text-xs text-green-600 font-medium whitespace-nowrap">
+                                                                Direct
+                                                            </div>
+                                                        )}
                                                     </div>
-                                                    {flight.stops > 0 && (
-                                                        <div className="text-xs text-orange-600 font-medium">
-                                                            {flight.stops} stop{flight.stops > 1 ? 's' : ''}
-                                                        </div>
-                                                    )}
-                                                    {flight.stops === 0 && (
-                                                        <div className="text-xs text-green-600 font-medium">
-                                                            Direct
-                                                        </div>
-                                                    )}
+
+                                                    <div className="text-center min-w-0 flex-shrink-0">
+                                                        <div className="text-base sm:text-lg font-bold text-gray-900">{flight.destination}</div>
+                                                        <div className="text-xs sm:text-sm font-medium text-blue-600">{flight.arrivalTime}</div>
+                                                    </div>
                                                 </div>
 
-                                                <div className="text-center">
-                                                    <div className="text-lg font-bold text-gray-900">{flight.destination}</div>
-                                                    <div className="text-sm font-medium text-blue-600">{flight.arrivalTime}</div>
+                                                {/* Flight Details - Responsive grid */}
+                                                <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 sm:gap-6 text-xs sm:text-sm text-gray-600">
+                                                    <div className="flex items-center gap-1">
+                                                        <Plane className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                                                        <span className="truncate">{flight.airline} {flight.flightNumber}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-1">
+                                                        <Calendar className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                                                        <span className="truncate">{new Date(flight.departureDate).toLocaleDateString()}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-1">
+                                                        <User className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                                                        <span className="truncate">{flight.travelClass}</span>
+                                                    </div>
+                                                    <div className="text-green-600 font-medium">
+                                                        {flight.availableSeats} seats left
+                                                    </div>
+                                                </div>
+
+                                                {/* Policies - Collapsible on mobile */}
+                                                <div className="text-xs text-gray-500 space-y-1 sm:block hidden">
+                                                    <div>• {flight.baggageAllowance}</div>
+                                                    <div>• {flight.cancellationPolicy}</div>
+                                                    <div>• {flight.changePolicy}</div>
                                                 </div>
                                             </div>
 
-                                            {/* Flight Details */}
-                                            <div className="flex items-center gap-6 text-sm text-gray-600">
-                                                <div className="flex items-center gap-1">
-                                                    <Plane className="w-4 h-4" />
-                                                    <span>{flight.airline} {flight.flightNumber}</span>
+                                            {/* Price and Booking - Desktop layout */}
+                                            <div className="hidden sm:flex sm:flex-col sm:w-auto sm:ml-6 text-center sm:text-right space-y-3">
+                                                <div>
+                                                    <div className="text-2xl font-bold text-gray-900">
+                                                        {flight.currency} {flight.price}
+                                                    </div>
+                                                    <div className="text-sm text-gray-500">per person</div>
                                                 </div>
-                                                <div className="flex items-center gap-1">
-                                                    <Calendar className="w-4 h-4" />
-                                                    <span>{new Date(flight.departureDate).toLocaleDateString()}</span>
-                                                </div>
-                                                <div className="flex items-center gap-1">
-                                                    <User className="w-4 h-4" />
-                                                    <span>{flight.travelClass}</span>
-                                                </div>
-                                                <div className="text-green-600 font-medium">
-                                                    {flight.availableSeats} seats left
+
+                                                <div className="space-y-2">
+                                                    <Button
+                                                        onClick={() => handleBookFlight(flight)}
+                                                        className="w-full bg-blue-600 hover:bg-blue-700"
+                                                        disabled={isLoading}
+                                                    >
+                                                        {isLoading ? (
+                                                            <>
+                                                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                                                Generating Link...
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <CreditCard className="w-4 h-4 mr-2" />
+                                                                Book Now
+                                                            </>
+                                                        )}
+                                                    </Button>
                                                 </div>
                                             </div>
+                                        </div>
 
-                                            {/* Policies */}
-                                            <div className="text-xs text-gray-500 space-y-1">
+                                        {/* Mobile booking button */}
+                                        <div className="sm:hidden">
+                                            <Button
+                                                onClick={() => handleBookFlight(flight)}
+                                                className="w-full bg-blue-600 hover:bg-blue-700"
+                                                disabled={isLoading}
+                                            >
+                                                {isLoading ? (
+                                                    <>
+                                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                                        Generating Link...
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <CreditCard className="w-4 h-4 mr-2" />
+                                                        Book Now
+                                                    </>
+                                                )}
+                                            </Button>
+                                        </div>
+
+                                        {/* Mobile policies - expandable */}
+                                        <details className="sm:hidden">
+                                            <summary className="text-xs text-gray-500 cursor-pointer hover:text-gray-700">
+                                                View policies & details
+                                            </summary>
+                                            <div className="text-xs text-gray-500 space-y-1 mt-2 pl-4">
                                                 <div>• {flight.baggageAllowance}</div>
                                                 <div>• {flight.cancellationPolicy}</div>
                                                 <div>• {flight.changePolicy}</div>
                                             </div>
-                                        </div>
-
-                                        {/* Price and Booking */}
-                                        <div className="w-full sm:w-auto sm:ml-6 text-center sm:text-right space-y-3">
-                                            <div>
-                                                <div className="text-2xl font-bold text-gray-900">
-                                                    {flight.currency} {flight.price}
-                                                </div>
-                                                <div className="text-sm text-gray-500">per person</div>
-                                            </div>
-
-                                            <div className="space-y-2">
-                                                <Button
-                                                    onClick={() => handleBookFlight(flight)}
-                                                    className="w-full bg-blue-600 hover:bg-blue-700"
-                                                    disabled={isLoading}
-                                                >
-                                                    {isLoading ? (
-                                                        <>
-                                                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                                            Generating Link...
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <CreditCard className="w-4 h-4 mr-2" />
-                                                            Book Now
-                                                        </>
-                                                    )}
-                                                </Button>
-                                            </div>
-                                        </div>
+                                        </details>
                                     </div>
                                 </Card>
                             );
