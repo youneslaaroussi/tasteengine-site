@@ -124,6 +124,13 @@ export interface BookingFlightOption {
   cancellationPolicy: string;
   changePolicy: string;
   
+  // Partner/agency selling the flight
+  partnerInfo?: {
+    name?: string;
+    company?: string;
+    [key: string]: any;
+  };
+  
   // All segments of the journey
   segments: FlightSegment[];
   

@@ -14,7 +14,9 @@ import {
     Clock,
     MapPin,
     Heart,
-    Share
+    Share,
+    Check,
+    Copy
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -26,6 +28,10 @@ import {
     SortOption
 } from '@/types/flights';
 import { useFlightSearch } from '@/contexts/flight-search-context';
+import { useSavedFlights } from '@/contexts/saved-flights-context';
+import { IOSSocialShare } from '@/components/ios-social-share';
+
+
 
 // Main Progressive Flight Search Component
 interface ProgressiveFlightSearchProps {
@@ -53,6 +59,30 @@ export const ProgressiveFlightSearch = memo(function ProgressiveFlightSearch({
         agentMessage,
         startSearch
     } = useFlightSearch();
+
+    const { savedFlights, toggleSavedFlight, isSavedFlightLoading } = useSavedFlights();
+
+    // Store flight data in localStorage for saved flights modal
+    useEffect(() => {
+        if (flights.length > 0) {
+            try {
+                const existingData = localStorage.getItem('allFlightData');
+                let allFlightData = existingData ? JSON.parse(existingData) : [];
+                
+                // Add new flights to existing data, avoiding duplicates
+                const newFlights = flights.filter(flight => 
+                    !allFlightData.some((existing: any) => existing.id === flight.id)
+                );
+                
+                if (newFlights.length > 0) {
+                    allFlightData = [...allFlightData, ...newFlights];
+                    localStorage.setItem('allFlightData', JSON.stringify(allFlightData));
+                }
+            } catch (error) {
+                console.error('Error storing flight data:', error);
+            }
+        }
+    }, [flights]);
 
     // Start search when component is displayed with new search data
     useEffect(() => {
@@ -184,6 +214,28 @@ export const ProgressiveFlightSearch = memo(function ProgressiveFlightSearch({
         }
     };
 
+    const handleHeartClick = (e: React.MouseEvent, flight: BookingFlightOption) => {
+        e.stopPropagation();
+        const isSaved = savedFlights.has(flight.id);
+        if (isSaved) {
+            // Remove from saved
+            toggleSavedFlight(flight.id);
+        } else {
+            // Add to saved, including the necessary details for booking
+            const pricingToken = pricingTokens[flight.id];
+            if (pricingToken && searchData?.searchId) {
+                toggleSavedFlight(flight.id, {
+                    pricingToken,
+                    searchId: searchData.searchId
+                });
+            } else {
+                console.error('Cannot save flight without pricing token and search ID');
+                // Optionally alert the user
+                alert('This flight cannot be saved as its booking details are incomplete.');
+            }
+        }
+    };
+
     return (
         <div className="space-y-2">
             {/* Agent Message & Search Status */}
@@ -257,6 +309,7 @@ export const ProgressiveFlightSearch = memo(function ProgressiveFlightSearch({
                         {sortedFlights.map((flight) => {
                             const isLoading = loadingFlightId === flight.id;
                             const isExpanded = expandedFlight === flight.id;
+                            const isSaved = savedFlights.has(flight.id);
 
                             return (
                                 <Card 
@@ -278,17 +331,30 @@ export const ProgressiveFlightSearch = memo(function ProgressiveFlightSearch({
 
                                             {/* Right side - Share and Heart icons */}
                                             <div className="flex items-center gap-2">
+                                                <IOSSocialShare flight={flight} searchData={searchData} pricingTokens={pricingTokens}>
+                                                    <button 
+                                                        onClick={(e) => e.stopPropagation()}
+                                                        className="p-1 hover:bg-gray-100 rounded transition-colors"
+                                                        title="Share flight"
+                                                    >
+                                                        <Share className="w-4 h-4 text-gray-400 hover:text-gray-600" />
+                                                    </button>
+                                                </IOSSocialShare>
                                                 <button 
-                                                    onClick={(e) => e.stopPropagation()}
-                                                    className="p-1 hover:bg-gray-100 rounded"
+                                                    onClick={(e) => handleHeartClick(e, flight)}
+                                                    className={cn(
+                                                        "p-1 hover:bg-gray-100 rounded transition-colors",
+                                                        savedFlights.has(flight.id) && "bg-red-50"
+                                                    )}
+                                                    title={savedFlights.has(flight.id) ? "Remove from saved" : "Save flight"}
+                                                    disabled={isSavedFlightLoading}
                                                 >
-                                                    <Share className="w-4 h-4 text-gray-400" />
-                                                </button>
-                                                <button 
-                                                    onClick={(e) => e.stopPropagation()}
-                                                    className="p-1 hover:bg-gray-100 rounded"
-                                                >
-                                                    <Heart className="w-4 h-4 text-gray-400" />
+                                                    <Heart className={cn(
+                                                        "w-4 h-4 transition-colors",
+                                                        savedFlights.has(flight.id)
+                                                            ? "text-red-500 fill-red-500" 
+                                                            : "text-gray-400 hover:text-red-500"
+                                                    )} />
                                                 </button>
                                             </div>
                                         </div>
@@ -325,11 +391,17 @@ export const ProgressiveFlightSearch = memo(function ProgressiveFlightSearch({
                                                 )}
                                             </div>
 
-                                            {/* Price */}
+                                            {/* Price and Partner */}
                                             <div className="text-right">
                                                 <div className="text-xl font-bold text-gray-900">
                                                     {flight.currency}{flight.price}
                                                 </div>
+                                                {flight.partnerInfo && (
+                                                    <div className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                                                        <ExternalLink className="w-3 h-3" />
+                                                        <span>via {flight.partnerInfo.name || flight.partnerInfo.company || 'Partner'}</span>
+                                                    </div>
+                                                )}
                                                 <Button
                                                     onClick={(e) => {
                                                         e.stopPropagation();
@@ -341,7 +413,7 @@ export const ProgressiveFlightSearch = memo(function ProgressiveFlightSearch({
                                                     {isLoading ? (
                                                         <Loader2 className="w-4 h-4 animate-spin" />
                                                     ) : (
-                                                        'Select'
+                                                        'Book Now'
                                                     )}
                                                 </Button>
                                             </div>
