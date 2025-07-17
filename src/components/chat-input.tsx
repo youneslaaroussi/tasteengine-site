@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Send, Square } from 'lucide-react';
-import { KeyboardEvent, useRef, useEffect, useCallback, memo, forwardRef, useImperativeHandle } from 'react';
+import { KeyboardEvent, useRef, useEffect, useCallback, memo, forwardRef, useImperativeHandle, useState } from 'react';
 import { trackChatEvent, trackUserEngagement } from '@/lib/gtag';
 
 interface ChatInputProps {
@@ -28,6 +28,21 @@ export const ChatInput = memo(forwardRef<ChatInputRef, ChatInputProps>(function 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const resizeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const rafRef = useRef<number | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Detect if user is on mobile device
+  useEffect(() => {
+    const checkMobile = () => {
+      const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+      const isSmallScreen = window.innerWidth <= 768;
+      setIsMobile(isTouchDevice && isSmallScreen);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Expose focus method to parent component
   useImperativeHandle(ref, () => ({
@@ -90,6 +105,12 @@ export const ChatInput = memo(forwardRef<ChatInputRef, ChatInputProps>(function 
 
   const handleKeyDown = useCallback((e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
+      // On mobile, allow Enter to create new lines instead of submitting
+      if (isMobile) {
+        return; // Let the default behavior happen (new line)
+      }
+      
+      // On desktop, prevent default and submit
       e.preventDefault();
       if (input.trim() && !isLoading) {
         // Track user message submission
@@ -101,7 +122,7 @@ export const ChatInput = memo(forwardRef<ChatInputRef, ChatInputProps>(function 
         handleSubmit();
       }
     }
-  }, [input, isLoading, handleSubmit]);
+  }, [input, isLoading, handleSubmit, isMobile]);
 
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);
@@ -158,7 +179,12 @@ export const ChatInput = memo(forwardRef<ChatInputRef, ChatInputProps>(function 
         </div>
         
         <div className="flex justify-between items-center mt-2 text-xs text-gray-500">
-          <span>Press Enter to send, Shift+Enter for new line</span>
+          <span>
+            {isMobile 
+              ? "Press Send button to submit, Enter for new line" 
+              : "Press Enter to send, Shift+Enter for new line"
+            }
+          </span>
           {isLoading && (
             <span className="flex items-center gap-1">
               <div className="w-2 h-2 bg-blue-600 rounded-full animate-pulse"></div>

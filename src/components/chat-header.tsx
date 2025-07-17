@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Sheet,
@@ -27,6 +27,21 @@ interface ChatHeaderProps {
 
 export function ChatHeader({ onNewChat, onLoadSession }: ChatHeaderProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Detect if user is on mobile device
+  useEffect(() => {
+    const checkMobile = () => {
+      const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+      const isSmallScreen = window.innerWidth <= 768;
+      setIsMobile(isTouchDevice && isSmallScreen);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const handleNewChat = () => {
     trackNavigationEvent('new_chat_click', 'header');
@@ -39,7 +54,7 @@ export function ChatHeader({ onNewChat, onLoadSession }: ChatHeaderProps) {
       <CountryPreloader />
       <div className="flex items-center justify-between px-4 sm:px-6 py-4">
         <div className="flex items-center gap-3">
-          <ChatHistorySidebar onNewChat={onNewChat} onLoadSession={onLoadSession} />
+          {isMobile && <ChatHistorySidebar onNewChat={onNewChat} onLoadSession={onLoadSession} />}
           <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center overflow-hidden">
             <Image src={logo} alt="GoFlyTo" width={64} height={64} />
           </div>
@@ -68,21 +83,6 @@ export function ChatHeader({ onNewChat, onLoadSession }: ChatHeaderProps) {
           <div className="w-px h-6 bg-gray-300" />
 
           <CountrySelector />
-
-          <div className="w-px h-6 bg-gray-300" />
-
-          <Button
-            onClick={() => {
-              trackNavigationEvent('new_chat_click', 'header_desktop');
-              onNewChat();
-            }}
-            variant="outline"
-            size="sm"
-            className="flex items-center gap-2"
-          >
-            <Plus className="w-4 h-4" />
-            New Chat
-          </Button>
         </div>
 
         {/* Mobile Navigation */}

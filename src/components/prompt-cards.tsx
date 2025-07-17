@@ -2,8 +2,8 @@
 
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plane, MapPin, Calendar, Users, DollarSign, Clock, TrendingUp, Heart } from 'lucide-react';
-import { trackPromptCardClick, trackUserEngagement } from '@/lib/gtag';
+import { Plane, MapPin, Calendar, Users, DollarSign, Clock, TrendingUp } from 'lucide-react';
+import { trackPromptCardClick } from '@/lib/gtag';
 
 interface PromptCard {
   id: string;
@@ -11,10 +11,6 @@ interface PromptCard {
   subtitle?: string;
   prompt: string;
   icon: React.ReactNode;
-  gradient: string;
-  image?: string;
-  price?: string;
-  badge?: string;
 }
 
 interface PromptCardsProps {
@@ -27,72 +23,48 @@ const promptCards: PromptCard[] = [
     title: 'Find Flights',
     subtitle: 'Search destinations',
     prompt: 'Find me flights from New York to San Francisco for next weekend',
-    icon: <Plane className="w-5 h-5" />,
-    gradient: 'from-blue-500 to-cyan-500',
-    image: 'https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=400&h=300&fit=crop&crop=center',
-    price: 'from $240',
-    badge: 'Popular'
+    icon: <Plane className="w-5 h-5" />
   },
   {
     id: 'budget-deals',
     title: 'Budget Deals',
     subtitle: 'Best value flights',
     prompt: 'Show me the cheapest flights from Los Angeles to Tokyo in the next 3 months',
-    icon: <DollarSign className="w-5 h-5" />,
-    gradient: 'from-green-500 to-emerald-500',
-    image: 'https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=400&h=300&fit=crop&crop=center',
-    price: 'from $450',
-    badge: 'Best Value'
+    icon: <DollarSign className="w-5 h-5" />
   },
   {
     id: 'weekend-trip',
     title: 'Weekend Getaway',
     subtitle: 'Quick city breaks',
     prompt: 'Plan a weekend trip from Chicago to Miami with flights and hotel recommendations',
-    icon: <Calendar className="w-5 h-5" />,
-    gradient: 'from-purple-500 to-pink-500',
-    image: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop&crop=center',
-    price: 'from $180',
-    badge: 'Weekend'
+    icon: <Calendar className="w-5 h-5" />
   },
   {
     id: 'group-travel',
     title: 'Group Travel',
     subtitle: 'Family & friends',
     prompt: 'Find flights for a group of 6 people from Seattle to London for summer vacation',
-    icon: <Users className="w-5 h-5" />,
-    gradient: 'from-orange-500 to-red-500',
-    image: 'https://images.unsplash.com/photo-1513475382585-d06e58bcb0e0?w=400&h=300&fit=crop&crop=center',
-    price: 'from $520',
-    badge: 'Groups'
+    icon: <Users className="w-5 h-5" />
   },
   {
     id: 'last-minute',
     title: 'Last Minute',
     subtitle: 'Spontaneous travel',
     prompt: 'Show me last-minute flight deals from Boston departing in the next 7 days',
-    icon: <Clock className="w-5 h-5" />,
-    gradient: 'from-yellow-500 to-orange-500',
-    image: 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=400&h=300&fit=crop&crop=center',
-    price: 'from $120',
-    badge: 'Urgent'
+    icon: <Clock className="w-5 h-5" />
   },
   {
     id: 'trending',
-    title: 'Trending Destinations',
+    title: 'Trending',
     subtitle: 'Popular right now',
     prompt: 'What are the trending travel destinations right now and show me flights from Dallas',
-    icon: <TrendingUp className="w-5 h-5" />,
-    gradient: 'from-indigo-500 to-purple-500',
-    image: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop&crop=center',
-    price: 'from $290',
-    badge: 'Trending'
+    icon: <TrendingUp className="w-5 h-5" />
   }
 ];
 
 export function PromptCards({ onPromptClick }: PromptCardsProps) {
   return (
-    <div className="max-w-5xl mx-auto p-6 space-y-6">
+    <div className="max-w-4xl mx-auto p-6 space-y-6">
       {/* Header */}
       <div className="text-center space-y-2">
         <h2 className="text-2xl font-bold text-gray-900">Where would you like to go?</h2>
@@ -104,82 +76,36 @@ export function PromptCards({ onPromptClick }: PromptCardsProps) {
         {promptCards.map((card) => (
           <Card
             key={card.id}
-            className="group relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer transform hover:-translate-y-1 bg-white"
+            className="p-4 border border-gray-200 cursor-pointer hover:border-gray-300 transition-colors"
             onClick={() => {
               trackPromptCardClick(card.id, card.title);
               onPromptClick(card.prompt);
             }}
           >
-            {/* Background Image or Gradient */}
-            <div className="relative h-48 overflow-hidden">
-              {card.image ? (
-                <div
-                  className="absolute inset-0 bg-cover bg-center transition-transform duration-300 group-hover:scale-105"
-                  style={{ backgroundImage: `url(${card.image})` }}
-                >
-                  <div className={`absolute inset-0 bg-gradient-to-br ${card.gradient} opacity-80`} />
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                <div className="text-gray-600">
+                  {card.icon}
                 </div>
-              ) : (
-                <div className={`absolute inset-0 bg-gradient-to-br ${card.gradient}`} />
-              )}
-              
-              {/* Badge */}
-              {card.badge && (
-                <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm text-xs font-semibold px-2 py-1 rounded-full text-gray-700">
-                  {card.badge}
-                </div>
-              )}
-              
-              {/* Heart Icon */}
-              <div 
-                className="absolute top-3 left-3 w-8 h-8 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center group-hover:bg-white/30 transition-colors cursor-pointer"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  trackUserEngagement('favorite_prompt', card.id);
-                }}
-              >
-                <Heart className="w-4 h-4 text-white" />
-              </div>
-            </div>
-
-            {/* Content */}
-            <div className="p-4 space-y-3">
-              <div className="space-y-1">
-                <h3 className="font-bold text-lg text-gray-900 group-hover:text-blue-600 transition-colors">
-                  {card.title}
-                </h3>
-                {card.subtitle && (
-                  <p className="text-sm text-gray-600">{card.subtitle}</p>
-                )}
-              </div>
-
-              {/* Price and Icon */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className={`w-8 h-8 rounded-full bg-gradient-to-br ${card.gradient} flex items-center justify-center text-white`}>
-                    {card.icon}
-                  </div>
-                  {card.price && (
-                    <div className="text-sm">
-                      <span className="text-gray-600">✈️</span>
-                      <span className="font-semibold text-gray-900 ml-1">{card.price}</span>
-                    </div>
+                <div>
+                  <h3 className="font-medium text-gray-900">{card.title}</h3>
+                  {card.subtitle && (
+                    <p className="text-sm text-gray-500">{card.subtitle}</p>
                   )}
                 </div>
-                <MapPin className="w-4 h-4 text-gray-400" />
               </div>
-
-              {/* Search Button */}
+              
               <Button
-                className="w-full bg-gray-900 hover:bg-gray-800 text-white transition-colors"
+                variant="outline"
                 size="sm"
+                className="w-full"
                 onClick={(e) => {
                   e.stopPropagation();
                   trackPromptCardClick(card.id, card.title);
                   onPromptClick(card.prompt);
                 }}
               >
-                Search flights
+                Try this search
               </Button>
             </div>
           </Card>

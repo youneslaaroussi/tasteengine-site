@@ -8,9 +8,9 @@ interface StatusMessageProps {
 
 export const StatusMessage = memo(function StatusMessage({ content }: StatusMessageProps) {
   return (
-    <div className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg mb-2 border-l-4 border-blue-400">
-      <Circle className="w-3 h-3 text-blue-600 flex-shrink-0" />
-      <span className="text-sm text-blue-800 font-medium">{content}</span>
+    <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 rounded-md text-sm text-gray-600 border border-gray-200">
+      <Circle className="w-3 h-3 text-gray-400 flex-shrink-0" />
+      <span>{content}</span>
     </div>
   );
 });
@@ -21,9 +21,9 @@ interface ThinkingMessageProps {
 
 export const ThinkingMessage = memo(function ThinkingMessage({ content }: ThinkingMessageProps) {
   return (
-    <div className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-purple-50 to-purple-100 rounded-lg mb-2 border-l-4 border-purple-400">
-      <Brain className="w-3 h-3 text-purple-600 flex-shrink-0" />
-      <span className="text-sm text-purple-800 font-medium italic">{content}</span>
+    <div className="flex items-center gap-2 px-3 py-1.5 bg-purple-50 rounded-md text-sm text-purple-600 border border-purple-200">
+      <Brain className="w-3 h-3 text-purple-400 flex-shrink-0" />
+      <span className="italic">{content}</span>
     </div>
   );
 });
@@ -49,69 +49,49 @@ export const ToolProgress = memo(function ToolProgress({
 
   if (isComplete) {
     return (
-      <div className="group relative overflow-hidden rounded-xl bg-gradient-to-r from-emerald-50 via-green-50 to-emerald-50 border border-emerald-200 mb-3 hover:shadow-sm transition-all duration-300">
-        <div className="absolute inset-0 bg-gradient-to-r from-emerald-100/20 via-transparent to-emerald-100/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-        <div className="relative px-4">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center shadow-sm">
-              <CheckCircle2 className="w-4 h-4 text-white" />
-            </div>
-            <div className="flex-1">
-              <h4 className="font-semibold text-sm text-emerald-900">{toolDisplayName}</h4>
-              {completeText && (
-                <p className="text-xs text-emerald-700 mt-0.5 font-medium">{completeText}</p>
-              )}
-            </div>
-            <div className="text-xs font-medium text-emerald-600 bg-emerald-100 px-2 py-1 rounded-full">
-              Done
-            </div>
-          </div>
-        </div>
+      <div className="flex items-center gap-2 px-3 py-1.5 bg-green-50 rounded-md text-sm text-green-700 border border-green-200">
+        <CheckCircle2 className="w-3 h-3 text-green-500 flex-shrink-0" />
+        <span className="font-medium">{toolDisplayName}</span>
+        {completeText && (
+          <>
+            <span className="text-gray-400">•</span>
+            <span className="text-green-600">{completeText}</span>
+          </>
+        )}
+        <span className="ml-auto text-xs text-green-600 bg-green-100 px-2 py-0.5 rounded-full">
+          Done
+        </span>
       </div>
     );
   }
 
   return (
-    <div className="group relative overflow-hidden rounded-xl bg-gradient-to-r from-slate-50 via-gray-50 to-slate-50 border border-slate-200 mb-3 hover:shadow-sm transition-all duration-300">
-      <div className="absolute inset-0 bg-gradient-to-r from-blue-100/20 via-transparent to-blue-100/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-      <div className="relative px-4 pt-1.5 pb-2">
-        <div className="flex items-center gap-3 mb-1">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-sm">
-            <Zap className="w-4 h-4 text-white" />
-          </div>
-          <div className="flex-1 py-2">
-            <h4 className="font-semibold text-sm text-slate-900 !m-0">{toolDisplayName}</h4>
-            {description && (
-              <p className="text-xs text-slate-600 mt-0.5 !m-0">{description}</p>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
-            <div className="text-xs font-medium text-slate-600 bg-slate-100 px-2 py-1 rounded-full">
-              Running
-            </div>
-          </div>
-        </div>
-
-        {progress > 0 && (
-          <div className="space-y-2">
-            <div className="flex justify-between items-center">
-              <span className="text-xs text-slate-600 font-medium">{progressText}</span>
-              <span className="text-xs font-bold text-slate-500">{progress}%</span>
-            </div>
-            <div className="relative h-2 bg-slate-200 rounded-full overflow-hidden">
-              <div
-                className="absolute top-0 left-0 h-full bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full transition-all duration-500 ease-out"
-                style={{ width: `${Math.min(progress, 100)}%` }}
-              />
-              <div
-                className="absolute top-0 left-0 h-full bg-gradient-to-r from-blue-400/50 to-indigo-500/50 rounded-full animate-pulse"
-                style={{ width: `${Math.min(progress, 100)}%` }}
-              />
-            </div>
-          </div>
+    <div className="bg-blue-50 rounded-md border border-blue-200 p-3">
+      <div className="flex items-center gap-2 mb-2">
+        <Loader2 className="w-3 h-3 text-blue-500 animate-spin flex-shrink-0" />
+        <span className="text-sm font-medium text-blue-700">{toolDisplayName}</span>
+        {description && (
+          <>
+            <span className="text-gray-400">•</span>
+            <span className="text-xs text-blue-600">{description}</span>
+          </>
         )}
       </div>
+
+      {progress > 0 && (
+        <div className="space-y-1">
+          <div className="flex justify-between items-center">
+            <span className="text-xs text-blue-600">{progressText}</span>
+            <span className="text-xs font-medium text-blue-500">{progress}%</span>
+          </div>
+          <div className="h-1 bg-blue-200 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-blue-500 rounded-full transition-all duration-500"
+              style={{ width: `${Math.min(progress, 100)}%` }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 });
