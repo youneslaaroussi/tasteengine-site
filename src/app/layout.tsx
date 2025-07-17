@@ -4,6 +4,9 @@ import "./globals.css";
 import "@fontsource/jetbrains-mono";
 import { GoogleAnalytics } from "@/components/google-analytics";
 import { ExternalScript } from "@/components/external-script";
+import { FlightSearchProvider } from '@/contexts/flight-search-context';
+import { cn } from "@/lib/utils";
+import { CountryPreloader } from "@/components/country-preloader";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -45,15 +48,23 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
-    <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}>
+    <html lang="en" suppressHydrationWarning>
+      <body
+        className={cn(
+          "min-h-screen bg-background font-sans antialiased",
+          geistSans.variable
+        )}
+      >
+        <CountryPreloader />
+        <FlightSearchProvider>
+          {children}
+        </FlightSearchProvider>
         <GoogleAnalytics />
         <ExternalScript />
-        {children}
       </body>
     </html>
   );

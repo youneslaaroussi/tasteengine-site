@@ -8,6 +8,7 @@ import { useEffect, useRef, useMemo, useCallback, useState, useImperativeHandle,
 import { useChatHistory } from '@/hooks/use-chat-history';
 import { ChatSession } from '@/types/chat-history';
 import { trackChatEvent, trackChatHistoryEvent } from '@/lib/gtag';
+import { useFlightSearch } from '@/contexts/flight-search-context';
 
 // Move initial messages outside component to prevent recreation on every render
 const INITIAL_MESSAGES = [
@@ -28,6 +29,8 @@ export const ChatInterface = forwardRef<ChatInterfaceRef>((props, ref) => {
   const { messages, input, handleInputChange, handleSubmit, isLoading, stop, setInput, setMessages } = useDirectChat({
     initialMessages: INITIAL_MESSAGES,
   });
+
+  const { isSearching: isFlightSearching, flights, pricingTokens, resetSearch: resetFlightSearch } = useFlightSearch();
 
   const { updateCurrentSession, createNewSession, currentSession, loadSession: loadSessionFromHistory } = useChatHistory();
 
@@ -90,6 +93,13 @@ export const ChatInterface = forwardRef<ChatInterfaceRef>((props, ref) => {
     return messages.some(message => message.role === 'user');
   }, [messages]);
 
+  // Wrapper for handleSubmit to include flight data
+  const handleFormSubmit = useCallback((e?: React.FormEvent<HTMLFormElement>) => {
+    e?.preventDefault();
+    const flightData = { flights, pricingTokens };
+    handleSubmit(e, { flightData });
+  }, [handleSubmit, flights, pricingTokens]);
+
   // Handle prompt card clicks
   const handlePromptClick = useCallback((prompt: string) => {
     setInput(prompt);
@@ -104,10 +114,10 @@ export const ChatInterface = forwardRef<ChatInterfaceRef>((props, ref) => {
     // Auto-submit the prompt after a brief delay
     setTimeout(() => {
       if (chatInputRef.current) {
-        handleSubmit();
+        handleFormSubmit();
       }
     }, 100);
-  }, [setInput, handleSubmit, currentSession?.id]);
+  }, [setInput, handleFormSubmit, currentSession?.id]);
 
   // Memoize the messages rendering to prevent unnecessary re-renders
   const renderedMessages = useMemo(() => {
@@ -136,6 +146,9 @@ export const ChatInterface = forwardRef<ChatInterfaceRef>((props, ref) => {
     
     // Create new session (this will automatically update the current session)
     createNewSession();
+
+    // Reset flight search
+    resetFlightSearch();
     
     // Reset scroll position
     setTimeout(() => {
@@ -146,7 +159,7 @@ export const ChatInterface = forwardRef<ChatInterfaceRef>((props, ref) => {
     setTimeout(() => {
       chatInputRef.current?.focus();
     }, 200);
-  }, [stop, setMessages, setInput, createNewSession, scrollToBottom]);
+  }, [stop, setMessages, setInput, createNewSession, scrollToBottom, resetFlightSearch]);
 
   // Load session function
   const loadSession = useCallback((session: ChatSession) => {
@@ -164,6 +177,9 @@ export const ChatInterface = forwardRef<ChatInterfaceRef>((props, ref) => {
     
     // Clear input
     setInput('');
+
+    // Reset flight search
+    resetFlightSearch();
     
     // Reset scroll position
     setTimeout(() => {
@@ -174,7 +190,7 @@ export const ChatInterface = forwardRef<ChatInterfaceRef>((props, ref) => {
     setTimeout(() => {
       chatInputRef.current?.focus();
     }, 200);
-  }, [stop, loadSessionFromHistory, setMessages, setInput, scrollToBottom]);
+  }, [stop, loadSessionFromHistory, setMessages, setInput, scrollToBottom, resetFlightSearch]);
 
   // Expose functions through ref
   useImperativeHandle(ref, () => ({
@@ -207,8 +223,8 @@ export const ChatInterface = forwardRef<ChatInterfaceRef>((props, ref) => {
             ref={chatInputRef}
             input={input}
             setInput={setInput}
-            handleSubmit={handleSubmit}
-            isLoading={isLoading}
+            handleSubmit={handleFormSubmit}
+            isLoading={isLoading || isFlightSearching}
             onStop={stop}
           />
         </div>

@@ -246,10 +246,9 @@ export function renderToolResult(toolName: string, resultData: any): React.React
       if (searchParams) {
         return (
           <div className="mb-4">
-            <ProgressiveFlightSearch 
+            <ProgressiveFlightSearch
               searchParams={searchParams}
               searchData={resultData}
-              autoInitiate={true}
             />
           </div>
         );

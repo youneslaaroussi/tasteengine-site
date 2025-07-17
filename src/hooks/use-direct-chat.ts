@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { useChat, CreateMessage, Message } from '@ai-sdk/react';
+import { BookingFlightOption } from '@/types/flights';
 
 export function useDirectChat({ initialMessages }: { initialMessages: CreateMessage[] }) {
   const [activeTools, setActiveTools] = useState(new Set<string>());
@@ -18,7 +19,12 @@ export function useDirectChat({ initialMessages }: { initialMessages: CreateMess
   });
 
   // Custom handleSubmit to call the backend directly
-  const handleSubmit = useCallback(async (e?: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = useCallback(async (e?: React.FormEvent<HTMLFormElement>, options?: {
+    flightData?: {
+        flights: BookingFlightOption[];
+        pricingTokens: Record<string, string>;
+    }
+  }) => {
     e?.preventDefault();
     if (!input || isStreaming) return;
 
@@ -37,9 +43,29 @@ export function useDirectChat({ initialMessages }: { initialMessages: CreateMess
     setAbortController(controller);
 
     // Prepare the request for the backend
+    const conversationHistory: {role: string, content: string}[] = [...messages.map(m => ({role: m.role, content: m.content})), { role: 'user', content: currentInput }];
+
+    if (options?.flightData && options.flightData.flights.length > 0) {
+      const flightDataMessageContent = {
+        toolName: 'search_bookable_flights',
+        data: {
+          flights: options.flightData.flights,
+          pricingTokens: options.flightData.pricingTokens,
+        }
+      };
+      
+      const dataMessage = {
+        role: 'data' as const,
+        content: JSON.stringify(flightDataMessageContent)
+      };
+
+      // Insert data message before the last user message
+      conversationHistory.splice(conversationHistory.length - 1, 0, dataMessage);
+    }
+
     const backendRequest = {
       message: currentInput,
-      conversationHistory: [...messages.map(m => ({role: m.role, content: m.content})), { role: 'user', content: currentInput }],
+      conversationHistory: conversationHistory,
     };
 
     let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
