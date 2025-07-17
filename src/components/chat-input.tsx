@@ -1,198 +1,119 @@
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Send, Square } from 'lucide-react';
-import { KeyboardEvent, useRef, useEffect, useCallback, memo, forwardRef, useImperativeHandle, useState } from 'react';
-import { trackChatEvent, trackUserEngagement } from '@/lib/gtag';
+'use client'
+
+import { useState, useRef, useCallback, forwardRef, useImperativeHandle } from 'react'
+import { Button } from '@/components/ui/button'
+import { Textarea } from '@/components/ui/textarea'
+import { Send, Square } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 interface ChatInputProps {
-  input: string;
-  setInput: (value: string) => void;
-  handleSubmit: (e?: React.FormEvent<HTMLFormElement>) => void;
-  isLoading: boolean;
-  onStop?: () => void;
-  placeholder?: string;
+  input: string
+  setInput: (value: string) => void
+  onSubmit: (e?: React.FormEvent) => void
+  isLoading: boolean
+  onStop?: () => void
+  placeholder?: string
+  className?: string
 }
 
 export interface ChatInputRef {
-  focus: () => void;
+  focus: () => void
 }
 
-export const ChatInput = memo(forwardRef<ChatInputRef, ChatInputProps>(function ChatInput({ 
-  input, 
-  setInput, 
-  handleSubmit, 
-  isLoading, 
-  onStop,
-  placeholder = "Message Travel Assistant..."
-}, ref) {
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const resizeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const rafRef = useRef<number | null>(null);
-  const [isMobile, setIsMobile] = useState(false);
+export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
+  ({ input, setInput, onSubmit, isLoading, onStop, placeholder = "Message GoFlyTo...", className }, ref) => {
+    const textareaRef = useRef<HTMLTextAreaElement>(null)
+    const [rows, setRows] = useState(1)
 
-  // Detect if user is on mobile device
-  useEffect(() => {
-    const checkMobile = () => {
-      const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-      const isSmallScreen = window.innerWidth <= 768;
-      setIsMobile(isTouchDevice && isSmallScreen);
-    };
-    
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
+    // Auto-resize textarea
+    const adjustTextareaHeight = useCallback(() => {
+      const textarea = textareaRef.current
+      if (!textarea) return
 
-  // Expose focus method to parent component
-  useImperativeHandle(ref, () => ({
-    focus: () => {
-      textareaRef.current?.focus();
-    }
-  }), []);
-
-  // Optimized auto-resize textarea with debouncing and requestAnimationFrame
-  const resizeTextarea = useCallback(() => {
-    if (!textareaRef.current) return;
-    
-    // Cancel any pending animation frame
-    if (rafRef.current) {
-      cancelAnimationFrame(rafRef.current);
-    }
-    
-    rafRef.current = requestAnimationFrame(() => {
-      if (textareaRef.current) {
-        textareaRef.current.style.height = 'auto';
-        textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 200) + 'px';
-      }
-    });
-  }, []);
-
-  // Debounced resize effect
-  useEffect(() => {
-    // Clear existing timeout
-    if (resizeTimeoutRef.current) {
-      clearTimeout(resizeTimeoutRef.current);
-    }
-    
-    // Debounce the resize operation
-    resizeTimeoutRef.current = setTimeout(() => {
-      resizeTextarea();
-    }, 10); // Small delay to group rapid changes
-    
-    // Cleanup function
-    return () => {
-      if (resizeTimeoutRef.current) {
-        clearTimeout(resizeTimeoutRef.current);
-      }
-      if (rafRef.current) {
-        cancelAnimationFrame(rafRef.current);
-      }
-    };
-  }, [input, resizeTextarea]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (resizeTimeoutRef.current) {
-        clearTimeout(resizeTimeoutRef.current);
-      }
-      if (rafRef.current) {
-        cancelAnimationFrame(rafRef.current);
-      }
-    };
-  }, []);
-
-  const handleKeyDown = useCallback((e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      // On mobile, allow Enter to create new lines instead of submitting
-      if (isMobile) {
-        return; // Let the default behavior happen (new line)
-      }
+      textarea.style.height = 'auto'
+      const scrollHeight = textarea.scrollHeight
+      const lineHeight = 24 // Approximate line height
+      const newRows = Math.min(Math.max(Math.ceil(scrollHeight / lineHeight), 1), 5)
       
-      // On desktop, prevent default and submit
-      e.preventDefault();
-      if (input.trim() && !isLoading) {
-        // Track user message submission
-        trackChatEvent('user_message_submit', {
-          message_type: 'user_message',
-          message_length: input.trim().length,
-          input_method: 'keyboard',
-        });
-        handleSubmit();
+      setRows(newRows)
+      textarea.style.height = `${Math.min(scrollHeight, lineHeight * 5)}px`
+    }, [])
+
+    const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+      setInput(e.target.value)
+      adjustTextareaHeight()
+    }, [setInput, adjustTextareaHeight])
+
+    const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault()
+        if (!isLoading && input.trim()) {
+          onSubmit()
+        }
       }
-    }
-  }, [input, isLoading, handleSubmit, isMobile]);
+    }, [input, isLoading, onSubmit])
 
-  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setInput(e.target.value);
-  }, [setInput]);
+    const handleSubmit = useCallback((e: React.FormEvent) => {
+      e.preventDefault()
+      if (!isLoading && input.trim()) {
+        onSubmit()
+      }
+    }, [input, isLoading, onSubmit])
 
-  return (
-    <div className="p-4">
-      <form onSubmit={handleSubmit} className="relative">
-        <div className="flex items-end gap-3 bg-white border border-gray-300 rounded-lg shadow-sm focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500">
-          <Textarea
-            ref={textareaRef}
-            value={input}
-            onChange={handleInputChange}
-            onKeyDown={handleKeyDown}
-            placeholder={placeholder}
-            className="flex-1 min-h-[44px] max-h-[200px] resize-none border-0 bg-transparent p-3 focus:ring-0 focus-visible:ring-0 text-gray-900 placeholder-gray-500"
-            rows={1}
-            disabled={isLoading}
-          />
+    // Expose focus method
+    useImperativeHandle(ref, () => ({
+      focus: () => textareaRef.current?.focus()
+    }), [])
+
+    return (
+      <div className={cn("chat-input-container", className)}>
+        <div className="max-w-3xl mx-auto">
+          <form onSubmit={handleSubmit} className="relative">
+            <div className="flex items-end gap-2 p-3 bg-gray-50 rounded-2xl border border-gray-200 focus-within:border-gray-300 transition-colors">
+              <Textarea
+                ref={textareaRef}
+                value={input}
+                onChange={handleInputChange}
+                onKeyDown={handleKeyDown}
+                placeholder={placeholder}
+                rows={rows}
+                className="flex-1 resize-none border-0 bg-transparent p-0 text-base placeholder:text-gray-500 focus-visible:ring-0 focus-visible:ring-offset-0"
+                style={{ minHeight: '24px', maxHeight: '120px' }}
+                disabled={isLoading}
+              />
+              
+              <div className="flex-shrink-0">
+                {isLoading ? (
+                  <Button
+                    type="button"
+                    onClick={onStop}
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8 rounded-lg"
+                  >
+                    <Square className="h-4 w-4" />
+                  </Button>
+                ) : (
+                  <Button
+                    type="submit"
+                    size="icon"
+                    disabled={!input.trim()}
+                    className="h-8 w-8 rounded-lg disabled:opacity-30"
+                  >
+                    <Send className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            </div>
+          </form>
           
-          <div className="flex-shrink-0 p-3">
-            <Button
-              type={isLoading ? "button" : "submit"}
-              disabled={(!input.trim() && !isLoading)}
-              onClick={isLoading ? () => {
-                trackUserEngagement('stop_generation', 'chat_input');
-                onStop?.();
-              } : () => {
-                if (input.trim()) {
-                  trackChatEvent('user_message_submit', {
-                    message_type: 'user_message',
-                    message_length: input.trim().length,
-                    input_method: 'button',
-                  });
-                  handleSubmit();
-                }
-              }}
-              size="sm"
-              className={`w-8 h-8 p-0 rounded-md transition-colors ${
-                isLoading 
-                  ? 'bg-gray-600 hover:bg-gray-700 text-white' 
-                  : input.trim() 
-                    ? 'bg-blue-600 hover:bg-blue-700 text-white' 
-                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-              }`}
-            >
-              {isLoading ? (
-                <Square className="w-4 h-4" />
-              ) : (
-                <Send className="w-4 h-4" />
-              )}
-            </Button>
-          </div>
+          <p className="text-xs text-gray-500 text-center mt-2 px-4">
+            GoFlyTo can make mistakes. Check important flight details.
+          </p>
         </div>
-        
-        <div className="flex justify-between items-center mt-2 text-xs text-gray-500">
-          <span>
-            {isMobile 
-              ? "Press Send button to submit, Enter for new line" 
-              : "Press Enter to send, Shift+Enter for new line"
-            }
-          </span>
-          {isLoading && (
-            <span className="flex items-center gap-1">
-              <div className="w-2 h-2 bg-blue-600 rounded-full animate-pulse"></div>
-              Generating response...
-            </span>
-          )}
-        </div>
-      </form>
-    </div>
-  );
-})); 
+      </div>
+    )
+  }
+)
+
+ChatInput.displayName = 'ChatInput'
