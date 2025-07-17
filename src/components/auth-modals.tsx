@@ -59,7 +59,7 @@ export function LoginModal({ children, onOpenChange }: AuthModalsProps) {
             Enter your credentials to access your account.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-2">
           <div className="space-y-2">
             <Label htmlFor="login-email">Email</Label>
             <div className="relative">
@@ -153,7 +153,7 @@ export function SignupModal({ children, onOpenChange }: AuthModalsProps) {
             Sign up to start planning your travels with our AI assistant.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-2">
           <div className="space-y-2">
             <Label htmlFor="signup-name">Full Name</Label>
             <div className="relative">

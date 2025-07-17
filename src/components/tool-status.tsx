@@ -66,9 +66,8 @@ export const ToolProgress = memo(function ToolProgress({
   }
 
   return (
-    <div className="bg-blue-50 rounded-md border border-blue-200 p-3">
-      <div className="flex items-center gap-2 mb-2">
-        <Loader2 className="w-3 h-3 text-blue-500 animate-spin flex-shrink-0" />
+    <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 rounded-md text-sm text-blue-700 border border-blue-200">
+      <Loader2 className="w-3 h-3 text-blue-500 animate-spin flex-shrink-0" />
         <span className="text-sm font-medium text-blue-700">{toolDisplayName}</span>
         {description && (
           <>
@@ -76,7 +75,6 @@ export const ToolProgress = memo(function ToolProgress({
             <span className="text-xs text-blue-600">{description}</span>
           </>
         )}
-      </div>
 
       {progress > 0 && (
         <div className="space-y-1">

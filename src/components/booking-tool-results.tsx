@@ -185,7 +185,7 @@ export const ProgressiveFlightSearch = memo(function ProgressiveFlightSearch({
     };
 
     return (
-        <div className="space-y-4">
+        <div className="space-y-2">
             {/* Agent Message & Search Status */}
             {agentMessage && (
                 <StatusMessage content={agentMessage} />
@@ -214,7 +214,7 @@ export const ProgressiveFlightSearch = memo(function ProgressiveFlightSearch({
 
             {/* Flight Results */}
             {flights.length > 0 && (
-                <div className="space-y-4">
+                <div className="space-y-2">
                     {/* Filter Tabs */}
                     <div className="flex gap-2 p-1 bg-gray-100 rounded-lg w-fit">
                         <button
@@ -351,7 +351,7 @@ export const ProgressiveFlightSearch = memo(function ProgressiveFlightSearch({
                                     {/* Expanded Details */}
                                     {isExpanded && (
                                         <div className="border-t bg-gray-50 p-4">
-                                            <div className="space-y-4">
+                                            <div className="space-y-2">
                                                 <div>
                                                     <h4 className="font-medium text-gray-900 mb-2">Flight Details</h4>
                                                     <div className="space-y-2">
@@ -498,7 +498,7 @@ interface BookingConfirmationProps {
 
 export const BookingConfirmation = memo(function BookingConfirmation({ data }: BookingConfirmationProps) {
     return (
-        <div className="space-y-4">
+        <div className="space-y-2">
             <Card className="p-6 border-green-200 bg-green-50">
                 <div className="flex items-center gap-3 mb-4">
                     <CheckCircle2 className="w-6 h-6 text-green-600" />
