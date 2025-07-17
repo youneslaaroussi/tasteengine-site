@@ -110,12 +110,53 @@ export function useChat({ initialMessages = [], onFlightSearchStart }: UseChatOp
                     ? { ...msg, content: msg.content + data.content }
                     : msg
                 ))
-              } else if (data.type === 'tool_start' && data.toolName === 'initiate_flight_search') {
-                // Extract search ID and trigger flight search
-                const searchId = data.searchId
-                if (searchId && onFlightSearchStart) {
-                  onFlightSearchStart(searchId)
+              } 
+              
+              else if (data.type === 'tool_start' && data.toolName) {
+                // Add tool start markdown to message
+                const toolMarkdown = `\n{% ${data.toolName}_start "${data.toolDescription || 'Processing...'}" %}\n`
+                setMessages(prev => prev.map(msg => 
+                  msg.id === assistantMessage.id 
+                    ? { ...msg, content: msg.content + toolMarkdown }
+                    : msg
+                ))
+                
+                // Handle flight search initiation
+                if (data.toolName === 'initiate_flight_search' && data.searchId && onFlightSearchStart) {
+                  onFlightSearchStart(data.searchId)
                 }
+              }
+              
+              else if (data.type === 'tool_complete' && data.toolName) {
+                let toolMarkdown = `{% ${data.toolName}_complete "${data.content || 'Completed'}" %}\n\n`
+                
+                // Append JSON for flight and booking tools
+                const bookingTools = [
+                  'create_flight_itinerary',
+                  'search_bookable_flights', 
+                  'searchBookableFlights',
+                  'initiate_flight_search',
+                  'validate_booking',
+                  'validateBooking',
+                  'create_booking',
+                  'createBooking',
+                  'get_booking_status',
+                  'getBookingStatus',
+                  'cancel_booking',
+                  'cancelBooking',
+                  'create_affiliate_links',
+                  'createAffiliateLinks'
+                ]
+                
+                if (data.data && bookingTools.includes(data.toolName)) {
+                  toolMarkdown += JSON.stringify(data.data, null, 2) + '\n\n'
+                }
+                
+                setMessages(prev => prev.map(msg => 
+                  msg.id === assistantMessage.id 
+                    ? { ...msg, content: msg.content + toolMarkdown }
+                    : msg
+                ))
               }
             } catch (parseError) {
               console.error('Error parsing stream data:', parseError)

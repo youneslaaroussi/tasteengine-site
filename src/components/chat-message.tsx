@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { ChatMessage as ChatMessageType } from '@/types/chat'
+import { extractToolResult, renderToolResult } from './tool-result-handler'
 
 interface ChatMessageProps {
   message: ChatMessageType
@@ -13,45 +14,68 @@ interface ChatMessageProps {
 }
 
 const MessageContent = memo(({ content, isStreaming }: { content: string; isStreaming?: boolean }) => {
+  // Extract tool results from content
+  const toolResults = extractToolResult(content)
+  
+  // Remove tool markup from content for clean markdown rendering
+  const cleanContent = content
+    .replace(/{% \w+_start "[^"]*" %}\n?/g, '')
+    .replace(/{% \w+_complete "[^"]*" %}\n\n[\s\S]*?(?=\n\n|\n?{% |$)/g, '')
+    .trim()
+
   return (
-    <div className="prose prose-sm max-w-none prose-gray">
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        components={{
-          p: ({ children }) => <p className="mb-3 last:mb-0">{children}</p>,
-          ul: ({ children }) => <ul className="mb-3 last:mb-0 pl-4">{children}</ul>,
-          ol: ({ children }) => <ol className="mb-3 last:mb-0 pl-4">{children}</ol>,
-          li: ({ children }) => <li className="mb-1">{children}</li>,
-          code: ({ children, ...props }) => {
-            const inline = !props.className?.includes('language-')
-            return inline ? (
-              <code className="bg-gray-100 px-1 py-0.5 rounded text-sm">{children}</code>
-            ) : (
-              <pre className="bg-gray-100 p-3 rounded-lg overflow-x-auto">
-                <code>{children}</code>
-              </pre>
-            )
-          },
-          blockquote: ({ children }) => (
-            <blockquote className="border-l-4 border-gray-300 pl-4 italic">{children}</blockquote>
-          ),
-          table: ({ children }) => (
-            <div className="overflow-x-auto">
-              <table className="min-w-full border border-gray-300">{children}</table>
-            </div>
-          ),
-          th: ({ children }) => (
-            <th className="border border-gray-300 px-2 py-1 bg-gray-50 font-semibold text-left">
-              {children}
-            </th>
-          ),
-          td: ({ children }) => (
-            <td className="border border-gray-300 px-2 py-1">{children}</td>
-          ),
-        }}
-      >
-        {content}
-      </ReactMarkdown>
+    <div className="space-y-3">
+      {/* Render regular markdown content */}
+      {cleanContent && (
+        <div className="prose prose-sm max-w-none prose-gray">
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            components={{
+              p: ({ children }) => <p className="mb-3 last:mb-0">{children}</p>,
+              ul: ({ children }) => <ul className="mb-3 last:mb-0 pl-4">{children}</ul>,
+              ol: ({ children }) => <ol className="mb-3 last:mb-0 pl-4">{children}</ol>,
+              li: ({ children }) => <li className="mb-1">{children}</li>,
+              code: ({ children, ...props }) => {
+                const inline = !props.className?.includes('language-')
+                return inline ? (
+                  <code className="bg-gray-100 px-1 py-0.5 rounded text-sm">{children}</code>
+                ) : (
+                  <pre className="bg-gray-100 p-3 rounded-lg overflow-x-auto">
+                    <code>{children}</code>
+                  </pre>
+                )
+              },
+              blockquote: ({ children }) => (
+                <blockquote className="border-l-4 border-gray-300 pl-4 italic">{children}</blockquote>
+              ),
+              table: ({ children }) => (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full border border-gray-300">{children}</table>
+                </div>
+              ),
+              th: ({ children }) => (
+                <th className="border border-gray-300 px-2 py-1 bg-gray-50 font-semibold text-left">
+                  {children}
+                </th>
+              ),
+              td: ({ children }) => (
+                <td className="border border-gray-300 px-2 py-1">{children}</td>
+              ),
+            }}
+          >
+            {cleanContent}
+          </ReactMarkdown>
+        </div>
+      )}
+      
+      {/* Render tool results */}
+      {toolResults.map((result, index) => (
+        <div key={index}>
+          {renderToolResult(result)}
+        </div>
+      ))}
+      
+      {/* Streaming indicator */}
       {isStreaming && (
         <span className="inline-block w-2 h-4 bg-gray-400 animate-pulse ml-1" />
       )}
