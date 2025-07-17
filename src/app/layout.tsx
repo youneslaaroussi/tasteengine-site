@@ -137,7 +137,6 @@ export const metadata: Metadata = {
     "application-name": "GoFlyTo",
     "msapplication-TileImage": "/mstile-144x144.png",
     "msapplication-config": "/browserconfig.xml",
-    "apple-touch-fullscreen": "yes",
     "apple-mobile-web-app-capable": "yes",
     "facebook-domain-verification": "your_facebook_verification_code",
     "google-site-verification": "your_google_verification_code",
