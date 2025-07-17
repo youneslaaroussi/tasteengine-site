@@ -4,16 +4,8 @@ import { useRef, useEffect, useCallback, memo } from 'react'
 import { ChatMessage } from './chat-message'
 import { ChatInput, ChatInputRef } from './chat-input'
 import { StarterPrompts } from './starter-prompts'
-import { useChat } from '@/hooks/use-chat'
-import { useFlightSearch } from '@/hooks/use-flight-search'
-import { ChatMessage as ChatMessageType } from '@/types/chat'
-
-const INITIAL_MESSAGE: ChatMessageType = {
-  id: 'welcome',
-  role: 'assistant',
-  content: "Hi! I'm your travel assistant. I can help you search for flights, find travel deals, and plan your trips. What can I help you with today?",
-  createdAt: new Date(),
-}
+import { useChatContext } from '@/contexts/chat-context'
+import { useFlightSearchContext } from '@/contexts/flight-search-context'
 
 interface ChatInterfaceProps {
   className?: string
@@ -23,14 +15,9 @@ export const ChatInterface = memo(({ className }: ChatInterfaceProps) => {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const chatInputRef = useRef<ChatInputRef>(null)
   
-  // Flight search functionality
-  const flightSearch = useFlightSearch()
-  
-  // Chat functionality
-  const chat = useChat({
-    initialMessages: [INITIAL_MESSAGE],
-    onFlightSearchStart: flightSearch.startSearch,
-  })
+  // Get state from contexts
+  const chat = useChatContext()
+  const flightSearch = useFlightSearchContext()
 
   // Auto-scroll to bottom when messages change
   const scrollToBottom = useCallback(() => {
@@ -48,23 +35,9 @@ export const ChatInterface = memo(({ className }: ChatInterfaceProps) => {
     }
   }, [chat.isLoading])
 
-  // Handle prompt clicks
-  const handlePromptClick = useCallback((prompt: string) => {
-    chat.setInput(prompt)
-    setTimeout(() => {
-      chat.handleSubmit()
-    }, 100)
-  }, [chat])
 
-  // Handle form submission with flight data
-  const handleSubmit = useCallback((e?: React.FormEvent) => {
-    const flightData = {
-      searchId: flightSearch.searchId,
-      flights: flightSearch.flights,
-      pricingTokens: flightSearch.pricingTokens,
-    }
-    chat.handleSubmit(e, flightData)
-  }, [chat, flightSearch])
+
+
 
   const hasUserMessages = chat.messages.some(msg => msg.role === 'user')
 
@@ -104,7 +77,7 @@ export const ChatInterface = memo(({ className }: ChatInterfaceProps) => {
         {/* Show starter prompts only if no user messages */}
         {!hasUserMessages && !chat.isLoading && (
           <div className="pt-8">
-            <StarterPrompts onPromptClick={handlePromptClick} />
+            <StarterPrompts />
           </div>
         )}
         
@@ -112,14 +85,7 @@ export const ChatInterface = memo(({ className }: ChatInterfaceProps) => {
       </div>
 
       {/* Input */}
-      <ChatInput
-        ref={chatInputRef}
-        input={chat.input}
-        setInput={chat.setInput}
-        onSubmit={handleSubmit}
-        isLoading={chat.isLoading || flightSearch.isSearching}
-        onStop={chat.stop}
-      />
+      <ChatInput ref={chatInputRef} />
     </div>
   )
 })

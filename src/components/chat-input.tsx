@@ -6,12 +6,10 @@ import { Textarea } from '@/components/ui/textarea'
 import { Send, Square } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
+import { useChatContext } from '@/contexts/chat-context'
+import { useFlightSearchContext } from '@/contexts/flight-search-context'
+
 interface ChatInputProps {
-  input: string
-  setInput: (value: string) => void
-  onSubmit: (e?: React.FormEvent) => void
-  isLoading: boolean
-  onStop?: () => void
   placeholder?: string
   className?: string
 }
@@ -21,7 +19,11 @@ export interface ChatInputRef {
 }
 
 export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
-  ({ input, setInput, onSubmit, isLoading, onStop, placeholder = "Message GoFlyTo...", className }, ref) => {
+  ({ placeholder = "Message GoFlyTo...", className }, ref) => {
+    const chat = useChatContext()
+    const flightSearch = useFlightSearchContext()
+    
+    const { input, setInput, isLoading, stop: onStop } = chat
     const textareaRef = useRef<HTMLTextAreaElement>(null)
     const [rows, setRows] = useState(1)
 
@@ -48,17 +50,27 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault()
         if (!isLoading && input.trim()) {
-          onSubmit()
+          const flightData = {
+            searchId: flightSearch.searchId,
+            flights: flightSearch.flights,
+            pricingTokens: flightSearch.pricingTokens,
+          }
+          chat.handleSubmit(e, flightData)
         }
       }
-    }, [input, isLoading, onSubmit])
+    }, [input, isLoading, chat, flightSearch])
 
     const handleSubmit = useCallback((e: React.FormEvent) => {
       e.preventDefault()
       if (!isLoading && input.trim()) {
-        onSubmit()
+        const flightData = {
+          searchId: flightSearch.searchId,
+          flights: flightSearch.flights,
+          pricingTokens: flightSearch.pricingTokens,
+        }
+        chat.handleSubmit(e, flightData)
       }
-    }, [input, isLoading, onSubmit])
+    }, [input, isLoading, chat, flightSearch])
 
     // Expose focus method
     useImperativeHandle(ref, () => ({
@@ -83,7 +95,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
               />
               
               <div className="flex-shrink-0">
-                {isLoading ? (
+                {isLoading || flightSearch.isSearching ? (
                   <Button
                     type="button"
                     onClick={onStop}

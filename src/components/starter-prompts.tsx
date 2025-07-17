@@ -3,10 +3,9 @@
 import { memo } from 'react'
 import { Button } from '@/components/ui/button'
 import { Plane, MapPin, Calendar, DollarSign } from 'lucide-react'
+import { useChatContext } from '@/contexts/chat-context'
 
-interface StarterPromptsProps {
-  onPromptClick: (prompt: string) => void
-}
+interface StarterPromptsProps {}
 
 const prompts = [
   {
@@ -27,7 +26,15 @@ const prompts = [
   },
 ]
 
-export const StarterPrompts = memo(({ onPromptClick }: StarterPromptsProps) => {
+export const StarterPrompts = memo(({}: StarterPromptsProps) => {
+  const chat = useChatContext()
+  
+  const handlePromptClick = (prompt: string) => {
+    chat.setInput(prompt)
+    setTimeout(() => {
+      chat.handleSubmit()
+    }, 100)
+  }
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
       <div className="text-center mb-8">
@@ -47,7 +54,7 @@ export const StarterPrompts = memo(({ onPromptClick }: StarterPromptsProps) => {
           <Button
             key={index}
             variant="outline"
-            onClick={() => onPromptClick(prompt.text)}
+            onClick={() => handlePromptClick(prompt.text)}
             className="h-auto p-4 text-left justify-start hover:bg-gray-50 transition-colors"
           >
             <div className="flex items-start gap-3">
