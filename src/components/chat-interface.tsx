@@ -70,7 +70,7 @@ export const ChatInterface = memo(({ className }: ChatInterfaceProps) => {
         ))}
         
         {/* Show flight search status */}
-        {flightSearch.isSearching && (
+        {isSearching && (
           <div className="chat-message assistant bg-white mb-4">
             <div className="max-w-3xl mx-auto">
               <div className="flex gap-5">
@@ -82,7 +82,7 @@ export const ChatInterface = memo(({ className }: ChatInterfaceProps) => {
                 <div className="flex-1">
                   <div className="text-sm font-medium text-gray-900 mb-1">GoFlyTo</div>
                   <div className="text-gray-800">
-                    Searching for flights... Found {flightSearch.flights.length} options so far.
+                    Searching for flights... Found {flights.length} options so far.
                   </div>
                 </div>
               </div>

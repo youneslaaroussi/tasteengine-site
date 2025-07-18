@@ -16,9 +16,7 @@ export class FlightApiService {
 
   constructor() {
     this.baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || ''
-    if (!this.baseUrl) {
-      throw new Error('NEXT_PUBLIC_BACKEND_URL is not configured')
-    }
+    // Only throw error when actually making a request, not during build
   }
 
   /**
@@ -27,6 +25,10 @@ export class FlightApiService {
   async fetchFlightResults(searchId: string): Promise<ProgressiveSearchResponse> {
     if (!searchId) {
       throw new FlightApiError('Search ID is required')
+    }
+
+    if (!this.baseUrl) {
+      throw new FlightApiError('API endpoint not configured')
     }
 
     try {
@@ -118,6 +120,11 @@ export class FlightApiService {
   async cancelSearch(searchId: string): Promise<void> {
     if (!searchId) {
       throw new FlightApiError('Search ID is required')
+    }
+
+    if (!this.baseUrl) {
+      // Silently fail for cancel operations when API is not configured
+      return
     }
 
     try {

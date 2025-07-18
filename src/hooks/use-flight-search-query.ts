@@ -2,7 +2,7 @@
 
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useRef } from 'react'
-import { flightApiService, FlightApiError } from '@/lib/flight-api'
+import { flightApiService, FlightApiService, FlightApiError } from '@/lib/flight-api'
 import { useFlightSearchStore } from '@/stores/flight-search-store'
 import { useAnalytics } from './use-analytics'
 
@@ -104,7 +104,7 @@ export function useFlightSearchQuery(options: UseFlightSearchQueryOptions = {}) 
       const flightError = error as FlightApiError
       
       // Don't retry non-retryable errors
-      if (!flightApiService.isRetryableError(flightError)) {
+      if (!FlightApiService.isRetryableError(flightError)) {
         return false
       }
       
@@ -114,7 +114,7 @@ export function useFlightSearchQuery(options: UseFlightSearchQueryOptions = {}) 
     
     retryDelay: (attemptIndex, error) => {
       const flightError = error as FlightApiError
-      return flightApiService.getRetryDelay(flightError, attemptIndex)
+      return FlightApiService.getRetryDelay(flightError, attemptIndex)
     },
 
     // Cache configuration
@@ -139,7 +139,7 @@ export function useFlightSearchQuery(options: UseFlightSearchQueryOptions = {}) 
       setError(error.message)
       
       // Stop search for non-retryable errors
-      if (!flightApiService.isRetryableError(error)) {
+      if (!FlightApiService.isRetryableError(error)) {
         stopSearch()
       }
       

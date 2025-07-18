@@ -128,8 +128,8 @@ export function useFlightSearch() {
 
 // Selector hooks for performance optimization
 export function useFlightSearchState() {
-  const { searchId, isSearching, isLoading, isFetching, error } = useFlightSearch()
-  return { searchId, isSearching, isLoading, isFetching, error }
+  const { searchId, isSearching, isLoading, isFetching, error, retryAttempts, lastError } = useFlightSearch()
+  return { searchId, isSearching, isLoading, isFetching, error, retryAttempts, lastError }
 }
 
 export function useFlightSearchData() {

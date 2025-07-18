@@ -300,7 +300,7 @@ function FlightFiltersForm({ filters, onChange, onApply, onClear }: FlightFilter
             max={5000}
             step={50}
             value={[filters.maxPrice || 5000]}
-            onValueChange={([value]) => updateFilter('maxPrice', value)}
+            onValueChange={([value]: number[]) => updateFilter('maxPrice', value)}
             className="w-full"
           />
           <div className="text-sm text-gray-600">
@@ -319,7 +319,7 @@ function FlightFiltersForm({ filters, onChange, onApply, onClear }: FlightFilter
             max={3}
             step={1}
             value={[filters.maxStops ?? 3]}
-            onValueChange={([value]) => updateFilter('maxStops', value)}
+            onValueChange={([value]: number[]) => updateFilter('maxStops', value)}
             className="w-full"
           />
           <div className="text-sm text-gray-600">
@@ -341,7 +341,7 @@ function FlightFiltersForm({ filters, onChange, onApply, onClear }: FlightFilter
                 max={24}
                 step={1}
                 value={[Math.floor((filters.minDuration || 0) / 60)]}
-                onValueChange={([value]) => updateFilter('minDuration', value * 60)}
+                onValueChange={([value]: number[]) => updateFilter('minDuration', value * 60)}
                 className="w-full"
               />
               <div className="text-xs text-gray-600">
@@ -356,7 +356,7 @@ function FlightFiltersForm({ filters, onChange, onApply, onClear }: FlightFilter
                 max={48}
                 step={1}
                 value={[Math.floor((filters.maxDuration || 48 * 60) / 60)]}
-                onValueChange={([value]) => updateFilter('maxDuration', value * 60)}
+                onValueChange={([value]: number[]) => updateFilter('maxDuration', value * 60)}
                 className="w-full"
               />
               <div className="text-xs text-gray-600">
