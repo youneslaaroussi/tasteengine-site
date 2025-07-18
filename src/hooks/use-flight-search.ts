@@ -1,102 +1,111 @@
 'use client'
 
-import { useState, useCallback, useRef } from 'react'
-import { BookingFlightOption, ProgressiveSearchResponse } from '@/types/flights'
+import { useState, useCallback, useRef } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { BookingFlightOption, ProgressiveSearchResponse, SearchStatus } from '@/types/flights';
+
+const initialSearchData: ProgressiveSearchResponse = {
+  searchId: '',
+  status: {
+    searchId: '',
+    status: 'completed',
+    progress: { gatesQueried: 0, gatesCompleted: 0, percentComplete: 0 },
+    totalFlights: 0,
+    lastUpdate: new Date().toISOString(),
+    expiresAt: new Date().toISOString(),
+  },
+  newFlights: [],
+  pricingTokens: {},
+  hasMoreResults: false,
+};
+
+async function fetchFlightResults(searchId: string | null): Promise<ProgressiveSearchResponse> {
+  if (!searchId) {
+    return initialSearchData;
+  }
+  const response = await fetch(
+    `${process.env.NEXT_PUBLIC_BACKEND_URL}/booking/search/${searchId}/results`
+  );
+  if (!response.ok) {
+    if (response.status === 404) {
+      return { ...initialSearchData, searchId, status: { ...initialSearchData.status, searchId, status: 'expired' } };
+    }
+    throw new Error('Network response was not ok');
+  }
+  return response.json();
+}
 
 export function useFlightSearch() {
-  const [searchId, setSearchId] = useState<string | null>(null)
-  const [flights, setFlights] = useState<BookingFlightOption[]>([])
-  const [pricingTokens, setPricingTokens] = useState<Record<string, string>>({})
-  const [isSearching, setIsSearching] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  
-  const pollingRef = useRef<NodeJS.Timeout | null>(null)
-  const pollingInterval = 6000 // 6 seconds
+  const [searchId, setSearchId] = useState<string | null>(null);
+  const accumulatedFlightsRef = useRef<Map<string, BookingFlightOption>>(new Map());
+  const queryClient = useQueryClient();
 
-  const stopPolling = useCallback(() => {
-    if (pollingRef.current) {
-      clearTimeout(pollingRef.current)
-      pollingRef.current = null
-    }
-  }, [])
+  const { data, error, isLoading, isFetching } = useQuery({
+    queryKey: ['flights', searchId],
+    queryFn: () => fetchFlightResults(searchId),
+    enabled: !!searchId,
+    
+    // Disable all automatic refetches. Polling should only be driven by refetchInterval.
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchOnMount: false,
+
+    refetchInterval: (query) => {
+      const data = query.state.data;
+
+      // If there's no data for some reason, stop.
+      if (!data) {
+        return false;
+      }
+
+      const isSearchComplete = data.status.status === 'completed' || data.status.status === 'expired';
+      const hasMoreServerResults = data.hasMoreResults;
+
+      // If the server says it's done, or there are no more results, stop polling.
+      if (isSearchComplete || !hasMoreServerResults) {
+        return false;
+      }
+      
+      // If the server is still searching, continue polling.
+      return data.nextPollAfter ? data.nextPollAfter * 1000 : 6000;
+    },
+    select: (data) => {
+      data.newFlights.forEach(flight => {
+        const pricingToken = data.pricingTokens[flight.id];
+        accumulatedFlightsRef.current.set(flight.id, { ...flight, pricingToken });
+      });
+      return {
+        ...data,
+        newFlights: Array.from(accumulatedFlightsRef.current.values()),
+      };
+    },
+  });
 
   const startSearch = useCallback((newSearchId: string) => {
-    stopPolling()
-    setSearchId(newSearchId)
-    setFlights([])
-    setPricingTokens({})
-    setIsSearching(true)
-    setError(null)
-
-    const pollForResults = async () => {
-      try {
-        const response = await fetch(
-          `${process.env.NEXT_PUBLIC_BACKEND_URL}/booking/search/${newSearchId}/results`
-        )
-        
-        if (!response.ok) {
-          if (response.status === 404) {
-            throw new Error('Search expired or not found')
-          }
-          throw new Error(`HTTP error! status: ${response.status}`)
-        }
-
-        const data: ProgressiveSearchResponse = await response.json()
-        const { status, newFlights, pricingTokens: newPricingTokens, hasMoreResults, nextPollAfter } = data
-
-        // Update flights (merge with existing to avoid duplicates)
-        setFlights(prev => {
-          const flightMap = new Map<string, BookingFlightOption>()
-          
-          // Add existing flights
-          prev.forEach(flight => flightMap.set(flight.id, flight))
-          
-          // Add new flights (will overwrite duplicates)
-          newFlights.forEach(flight => flightMap.set(flight.id, flight))
-          
-          return Array.from(flightMap.values())
-        })
-
-        // Update pricing tokens
-        setPricingTokens(prev => ({ ...prev, ...newPricingTokens }))
-
-        // Continue polling if more results expected
-        if (hasMoreResults && status.status === 'searching') {
-          pollingRef.current = setTimeout(
-            pollForResults, 
-            nextPollAfter ? nextPollAfter * 1000 : pollingInterval
-          )
-        } else {
-          setIsSearching(false)
-        }
-      } catch (err) {
-        console.error('Flight search polling error:', err)
-        setError(err instanceof Error ? err.message : 'An error occurred while searching for flights')
-        setIsSearching(false)
-        stopPolling()
-      }
-    }
-
-    // Start polling immediately
-    pollForResults()
-  }, [stopPolling, pollingInterval])
+    accumulatedFlightsRef.current.clear();
+    setSearchId(newSearchId);
+  }, []);
 
   const resetSearch = useCallback(() => {
-    stopPolling()
-    setSearchId(null)
-    setFlights([])
-    setPricingTokens({})
-    setIsSearching(false)
-    setError(null)
-  }, [stopPolling])
+    accumulatedFlightsRef.current.clear();
+    setSearchId(null);
+    queryClient.removeQueries({ queryKey: ['flights'] });
+  }, [queryClient]);
+
+  const flights = data?.newFlights ?? [];
+  const pricingTokens = data?.pricingTokens ?? {};
+  
+  const isCompleted = data?.status.status === 'completed' || data?.status.status === 'expired';
+  // "isSearching" should be true as long as we have a searchId and the search isn't complete.
+  const isSearching = !!searchId && !isCompleted;
 
   return {
     searchId,
     flights,
     pricingTokens,
     isSearching,
-    error,
+    error: error?.message || null,
     startSearch,
     resetSearch,
-  }
+  };
 }

@@ -12,6 +12,16 @@ GoFlyTo is built with a clean, minimal architecture that prioritizes performance
 - **Local State**: State kept as close to usage as possible
 - **Immutable Updates**: Pure functions for state changes
 
+### 1a. Data Fetching with TanStack Query
+
+- **TanStack Query** is used for all asynchronous data fetching and mutations.
+- **Best Practices**:
+  - All API calls are wrapped in `useQuery` or `useMutation` hooks.
+  - Query keys are descriptive and colocated with the data consumer.
+  - Server state is never stored in React local state unless required for optimistic updates.
+  - Query invalidation and refetching are used for consistency after mutations.
+  - Prefetching and caching are leveraged for performance and UX.
+
 ### 2. Component Architecture
 ```
 ┌─────────────────┐

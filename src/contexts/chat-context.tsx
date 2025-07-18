@@ -3,6 +3,7 @@
 import { createContext, useContext, ReactNode } from 'react'
 import { useChat } from '@/hooks/use-chat'
 import { ChatMessage, FlightSearchData } from '@/types/chat'
+import { useFlightSearchContext } from './flight-search-context'
 
 const INITIAL_MESSAGE: ChatMessage = {
   id: 'welcome',
@@ -26,13 +27,13 @@ const ChatContext = createContext<ChatContextType | undefined>(undefined)
 
 interface ChatProviderProps {
   children: ReactNode
-  onFlightSearchStart?: (searchId: string) => void
 }
 
-export function ChatProvider({ children, onFlightSearchStart }: ChatProviderProps) {
+export function ChatProvider({ children }: ChatProviderProps) {
+  const flightSearch = useFlightSearchContext()
   const chat = useChat({
     initialMessages: [INITIAL_MESSAGE],
-    onFlightSearchStart,
+    onFlightSearchStart: flightSearch.startSearch,
   })
 
   return (

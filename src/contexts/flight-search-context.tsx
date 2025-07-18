@@ -8,7 +8,7 @@ interface FlightSearchContextType {
   searchId: string | null
   flights: BookingFlightOption[]
   pricingTokens: Record<string, string>
-  isSearching: boolean
+  isSearching: boolean | undefined
   error: string | null
   startSearch: (searchId: string) => void
   resetSearch: () => void

@@ -57,11 +57,11 @@ export const StarterPrompts = memo(({}: StarterPromptsProps) => {
             onClick={() => handlePromptClick(prompt.text)}
             className="h-auto p-4 text-left justify-start hover:bg-gray-50 transition-colors"
           >
-            <div className="flex items-start gap-3">
+            <div className="flex items-start gap-3 w-full">
               <div className="text-gray-600 mt-0.5">
                 {prompt.icon}
               </div>
-              <span className="text-sm text-gray-800 leading-relaxed">
+              <span className="text-sm text-gray-800 leading-relaxed text-ellipsis overflow-hidden line-clamp-1 w-full">
                 {prompt.text}
               </span>
             </div>

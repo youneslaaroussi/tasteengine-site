@@ -31,6 +31,7 @@ export interface BookingFlightOption {
   }
   
   segments: FlightSegment[]
+  pricingToken?: string
   
   // Legacy fields for backward compatibility
   origin: string

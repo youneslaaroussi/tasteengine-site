@@ -1,11 +1,13 @@
 'use client'
 
 import { useRef, useEffect, useCallback, memo } from 'react'
-import { ChatMessage } from './chat-message'
 import { ChatInput, ChatInputRef } from './chat-input'
 import { StarterPrompts } from './starter-prompts'
 import { useChatContext } from '@/contexts/chat-context'
 import { useFlightSearchContext } from '@/contexts/flight-search-context'
+import { usePrevious } from '@/hooks/use-previous'
+import { ChatMessage as ChatMessageType } from '@/types/chat'
+import { ChatMessage } from './chat-message'
 
 interface ChatInterfaceProps {
   className?: string
@@ -18,6 +20,7 @@ export const ChatInterface = memo(({ className }: ChatInterfaceProps) => {
   // Get state from contexts
   const chat = useChatContext()
   const flightSearch = useFlightSearchContext()
+  const wasSearching = usePrevious(flightSearch.isSearching)
 
   // Auto-scroll to bottom when messages change
   const scrollToBottom = useCallback(() => {
@@ -35,8 +38,20 @@ export const ChatInterface = memo(({ className }: ChatInterfaceProps) => {
     }
   }, [chat.isLoading])
 
-
-
+  // Effect to add flight results to chat history
+  useEffect(() => {
+    if (wasSearching && !flightSearch.isSearching && flightSearch.flights.length > 0) {
+      const flightMessage: ChatMessageType = {
+        id: crypto.randomUUID(),
+        role: 'data',
+        content: `I found ${flightSearch.flights.length} flights for you.`,
+        createdAt: new Date(),
+        flights: flightSearch.flights,
+        searchId: flightSearch.searchId || undefined,
+      };
+      chat.setMessages(prev => [...prev, flightMessage]);
+    }
+  }, [wasSearching, flightSearch.isSearching, flightSearch.flights, flightSearch.searchId, chat.setMessages]);
 
 
   const hasUserMessages = chat.messages.some(msg => msg.role === 'user')
@@ -73,7 +88,7 @@ export const ChatInterface = memo(({ className }: ChatInterfaceProps) => {
             </div>
           </div>
         )}
-        
+
         {/* Show starter prompts only if no user messages */}
         {!hasUserMessages && !chat.isLoading && (
           <div className="pt-8">

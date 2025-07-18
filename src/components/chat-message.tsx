@@ -1,93 +1,23 @@
 'use client'
 
 import { memo } from 'react'
-import { User, Bot } from 'lucide-react'
+import { Bot, User } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { ChatMessage as ChatMessageType } from '@/types/chat'
-import { extractToolResult, renderToolResult } from './tool-result-handler'
+import { AdvancedMessageContent } from './message-renderer/advanced-message-content'
+import { FlightList } from './flight-list'
 
 interface ChatMessageProps {
   message: ChatMessageType
   isStreaming?: boolean
 }
 
-const MessageContent = memo(({ content, isStreaming }: { content: string; isStreaming?: boolean }) => {
-  // Extract tool results from content
-  const toolResults = extractToolResult(content)
-  
-  // Remove tool markup from content for clean markdown rendering
-  const cleanContent = content
-    .replace(/{% \w+_start "[^"]*" %}\n?/g, '')
-    .replace(/{% \w+_complete "[^"]*" %}\n\n[\s\S]*?(?=\n\n|\n?{% |$)/g, '')
-    .trim()
-
-  return (
-    <div className="space-y-3">
-      {/* Render regular markdown content */}
-      {cleanContent && (
-        <div className="prose prose-sm max-w-none prose-gray">
-          <ReactMarkdown
-            remarkPlugins={[remarkGfm]}
-            components={{
-              p: ({ children }) => <p className="mb-3 last:mb-0">{children}</p>,
-              ul: ({ children }) => <ul className="mb-3 last:mb-0 pl-4">{children}</ul>,
-              ol: ({ children }) => <ol className="mb-3 last:mb-0 pl-4">{children}</ol>,
-              li: ({ children }) => <li className="mb-1">{children}</li>,
-              code: ({ children, ...props }) => {
-                const inline = !props.className?.includes('language-')
-                return inline ? (
-                  <code className="bg-gray-100 px-1 py-0.5 rounded text-sm">{children}</code>
-                ) : (
-                  <pre className="bg-gray-100 p-3 rounded-lg overflow-x-auto">
-                    <code>{children}</code>
-                  </pre>
-                )
-              },
-              blockquote: ({ children }) => (
-                <blockquote className="border-l-4 border-gray-300 pl-4 italic">{children}</blockquote>
-              ),
-              table: ({ children }) => (
-                <div className="overflow-x-auto">
-                  <table className="min-w-full border border-gray-300">{children}</table>
-                </div>
-              ),
-              th: ({ children }) => (
-                <th className="border border-gray-300 px-2 py-1 bg-gray-50 font-semibold text-left">
-                  {children}
-                </th>
-              ),
-              td: ({ children }) => (
-                <td className="border border-gray-300 px-2 py-1">{children}</td>
-              ),
-            }}
-          >
-            {cleanContent}
-          </ReactMarkdown>
-        </div>
-      )}
-      
-      {/* Render tool results */}
-      {toolResults.map((result, index) => (
-        <div key={index}>
-          {renderToolResult(result)}
-        </div>
-      ))}
-      
-      {/* Streaming indicator */}
-      {isStreaming && (
-        <span className="inline-block w-2 h-4 bg-gray-400 animate-pulse ml-1" />
-      )}
-    </div>
-  )
-})
-
-MessageContent.displayName = 'MessageContent'
-
 export const ChatMessage = memo(({ message, isStreaming }: ChatMessageProps) => {
   const isUser = message.role === 'user'
   const isSystem = message.role === 'system'
+  const isFlights = message.role === 'data'
 
   if (isSystem) {
     return (
@@ -95,6 +25,29 @@ export const ChatMessage = memo(({ message, isStreaming }: ChatMessageProps) => 
         <div className="max-w-3xl mx-auto">
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
             <p className="text-sm text-blue-800">{message.content}</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (isFlights && message.flights && message.searchId) {
+    return (
+      <div className="chat-message assistant bg-white">
+        <div className="max-w-3xl mx-auto">
+          <div className="flex gap-4">
+            <div className="flex-shrink-0">
+              <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center">
+                <Bot className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="flex-1">
+              <div className="text-sm font-medium text-gray-900 mb-1">GoFlyTo</div>
+              <div className="text-gray-800">
+                <p className="mb-3">{message.content}</p>
+                <FlightList flights={message.flights} searchId={message.searchId} />
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -132,7 +85,15 @@ export const ChatMessage = memo(({ message, isStreaming }: ChatMessageProps) => 
               
               <div className="text-gray-800">
                 {message.content ? (
-                  <MessageContent content={message.content} isStreaming={isStreaming} />
+                  isUser ? (
+                    <div className="prose prose-sm max-w-none prose-gray">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {message.content}
+                      </ReactMarkdown>
+                    </div>
+                  ) : (
+                    <AdvancedMessageContent content={message.content} />
+                  )
                 ) : isStreaming ? (
                   <div className="flex items-center gap-1">
                     <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse" />

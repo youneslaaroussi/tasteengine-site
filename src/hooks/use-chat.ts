@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef } from 'react'
 import { ChatMessage, FlightSearchData } from '@/types/chat'
+import { nanoid } from 'nanoid';
 
 interface UseChatOptions {
   initialMessages?: ChatMessage[]
@@ -36,6 +37,9 @@ export function useChat({ initialMessages = [], onFlightSearchStart }: UseChatOp
     abortControllerRef.current = controller
 
     try {
+      // Keep track of tool call IDs
+      const toolCallIds: Record<string, string> = {};
+
       // Prepare conversation history
       const conversationHistory: Array<{ role: string; content: string }> = [...messages, userMessage].map(msg => ({
         role: msg.role,
@@ -102,7 +106,7 @@ export function useChat({ initialMessages = [], onFlightSearchStart }: UseChatOp
         for (const line of lines) {
           if (line.trim().startsWith('data: ')) {
             try {
-              const data = JSON.parse(line.slice(6))
+              const data = JSON.parse(line.slice(6));
 
               if (data.type === 'content_stream' && data.content) {
                 setMessages(prev => prev.map(msg => 
@@ -113,24 +117,35 @@ export function useChat({ initialMessages = [], onFlightSearchStart }: UseChatOp
               } 
               
               else if (data.type === 'tool_start' && data.toolName) {
-                // Add tool start markdown to message
-                const toolMarkdown = `\n{% ${data.toolName}_start "${data.toolDescription || 'Processing...'}" %}\n`
+                const toolId = nanoid();
+                toolCallIds[data.toolName] = toolId;
+                
+                const toolMarkdown = `\n{% tool_start '${data.toolName}' '${toolId}' %}\n{% tool_description %}${data.toolDescription || 'Processing...'}{% end_tool_description %}\n{% endtool %}\n`;
                 setMessages(prev => prev.map(msg => 
                   msg.id === assistantMessage.id 
                     ? { ...msg, content: msg.content + toolMarkdown }
                     : msg
                 ))
-                
-                // Handle flight search initiation
-                if (data.toolName === 'initiate_flight_search' && data.searchId && onFlightSearchStart) {
-                  onFlightSearchStart(data.searchId)
-                }
               }
               
               else if (data.type === 'tool_complete' && data.toolName) {
-                let toolMarkdown = `{% ${data.toolName}_complete "${data.content || 'Completed'}" %}\n\n`
+                if (data.toolName === 'initiate_flight_search') {
+                  const toolData = data.data;
+                  if (toolData) {
+                    const callKey = Object.keys(toolData)[0];
+                    const searchId = toolData[callKey]?.searchId;
+
+                    if (searchId && onFlightSearchStart) {
+                      onFlightSearchStart(searchId);
+                    }
+                  }
+                }
+
+                const toolId = toolCallIds[data.toolName];
+                if (!toolId) return;
+
+                let toolMarkdown = `{% tool_complete '${data.toolName}' '${toolId}' %}\n`
                 
-                // Append JSON for flight and booking tools
                 const bookingTools = [
                   'create_flight_itinerary',
                   'search_bookable_flights', 
@@ -149,12 +164,13 @@ export function useChat({ initialMessages = [], onFlightSearchStart }: UseChatOp
                 ]
                 
                 if (data.data && bookingTools.includes(data.toolName)) {
-                  toolMarkdown += JSON.stringify(data.data, null, 2) + '\n\n'
+                  toolMarkdown += JSON.stringify(data.data, null, 2)
                 }
+                toolMarkdown += '\n{% endtool %}\n'
                 
                 setMessages(prev => prev.map(msg => 
                   msg.id === assistantMessage.id 
-                    ? { ...msg, content: msg.content + toolMarkdown }
+                    ? { ...msg, content: msg.content.replace(`{% tool_start '${data.toolName}' '${toolId}' %}`, `{% tool_complete '${data.toolName}' '${toolId}' %}`) + toolMarkdown }
                     : msg
                 ))
               }
