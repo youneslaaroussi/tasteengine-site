@@ -8,6 +8,8 @@ import { useFlightSearchState, useFlightSearchData } from '@/contexts/flight-sea
 import { usePrevious } from '@/hooks/use-previous'
 import { ChatMessage as ChatMessageType } from '@/types/chat'
 import { ChatMessage } from './chat-message'
+import { useChatStore } from '@/stores/chat-store'
+import { addFlightResultsToChat, shouldAddFlightResults } from '@/lib/flight-chat-integration'
 
 interface ChatInterfaceProps {
   className?: string
@@ -22,6 +24,9 @@ export const ChatInterface = memo(({ className }: ChatInterfaceProps) => {
   const { searchId, isSearching } = useFlightSearchState()
   const { flights } = useFlightSearchData()
   const wasSearching = usePrevious(isSearching)
+  
+  // Get addMessage from the store directly for adding flight data
+  const { addMessage } = useChatStore()
 
   // Auto-scroll to bottom when messages change
   const scrollToBottom = useCallback(() => {
@@ -41,19 +46,17 @@ export const ChatInterface = memo(({ className }: ChatInterfaceProps) => {
 
   // Effect to add flight results to chat history
   useEffect(() => {
-    if (wasSearching && !isSearching && flights.length > 0) {
-      const flightMessage: ChatMessageType = {
-        id: crypto.randomUUID(),
-        role: 'data',
-        content: `I found ${flights.length} flights for you.`,
-        createdAt: new Date(),
-        flights: flights,
-        searchId: searchId || undefined,
-      };
-      chat.setMessages(prev => [...prev, flightMessage]);
+    if (shouldAddFlightResults(wasSearching ?? false, isSearching, flights)) {
+      addFlightResultsToChat(
+        {
+          flights,
+          searchId: searchId || undefined,
+          totalFound: flights.length,
+        },
+        addMessage
+      )
     }
-  }, [wasSearching, isSearching, flights, searchId, chat.setMessages]);
-
+  }, [wasSearching, isSearching, flights, searchId, addMessage])
 
   const hasUserMessages = chat.messages.some(msg => msg.role === 'user')
 

@@ -242,25 +242,6 @@ export function useChat({ initialMessages = [], onFlightSearchStart }: UseChatOp
     }
   }, [messages, setInput, currentSession])
 
-  // Legacy compatibility - some components might still use setMessages
-  const setMessages = useCallback((messages: ChatMessage[] | ((prev: ChatMessage[]) => ChatMessage[])) => {
-    // This is a compatibility shim - in practice, we should use the store methods
-    console.warn('setMessages is deprecated, use the store methods instead')
-    if (typeof messages === 'function') {
-      // Handle function updates
-      const newMessages = messages(currentSession?.messages || [])
-      // Clear current messages and add new ones
-      if (currentSession) {
-        currentSession.messages = newMessages
-      }
-    } else {
-      // Handle direct array updates
-      if (currentSession) {
-        currentSession.messages = messages
-      }
-    }
-  }, [currentSession])
-
   return {
     messages,
     input,
@@ -269,7 +250,6 @@ export function useChat({ initialMessages = [], onFlightSearchStart }: UseChatOp
     isLoading,
     stop,
     reload,
-    setMessages, // Legacy compatibility
     trackEvent,
   }
 } 
