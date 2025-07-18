@@ -2,7 +2,12 @@
 
 import { useState, useCallback, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { BookingFlightOption, ProgressiveSearchResponse, SearchStatus } from '@/types/flights';
+import {
+  BookingFlightOption,
+  ProgressiveSearchResponse,
+  SearchStatus,
+} from '@/types/flights'
+import { useAnalytics } from './use-analytics'
 
 const initialSearchData: ProgressiveSearchResponse = {
   searchId: '',
@@ -36,6 +41,7 @@ async function fetchFlightResults(searchId: string | null): Promise<ProgressiveS
 }
 
 export function useFlightSearch() {
+  const { trackEvent } = useAnalytics()
   const [searchId, setSearchId] = useState<string | null>(null);
   const accumulatedFlightsRef = useRef<Map<string, BookingFlightOption>>(new Map());
   const queryClient = useQueryClient();
@@ -82,9 +88,10 @@ export function useFlightSearch() {
   });
 
   const startSearch = useCallback((newSearchId: string) => {
+    trackEvent('flight_search', 'flights', 'start_search', 1)
     accumulatedFlightsRef.current.clear();
     setSearchId(newSearchId);
-  }, []);
+  }, [trackEvent]);
 
   const resetSearch = useCallback(() => {
     accumulatedFlightsRef.current.clear();

@@ -92,7 +92,7 @@ export const ChatInterface = memo(({ className }: ChatInterfaceProps) => {
         {/* Show starter prompts only if no user messages */}
         {!hasUserMessages && !chat.isLoading && (
           <div className="pt-8">
-            <StarterPrompts />
+            <StarterPrompts onPromptClick={() => {}} />
           </div>
         )}
         

@@ -2,38 +2,36 @@
 'use client'
 
 import { useMutation } from '@tanstack/react-query'
+import { useAnalytics } from './use-analytics'
 
 interface GenerateBookingUrlParams {
   searchId: string
+  flightId: string
   termsUrl: string
 }
 
-async function generateBookingUrl({ searchId, termsUrl }: GenerateBookingUrlParams): Promise<any> {
-  const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/booking/generate-booking-url`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ searchId, termsUrl }),
+async function generateBookingUrl(params: GenerateBookingUrlParams): Promise<{ bookingUrl: string }> {
+  // This would be a call to your backend
+  console.log('Generating booking URL for', params)
+  return new Promise(resolve => {
+    setTimeout(() => {
+      resolve({ bookingUrl: `https://goflyto.com/book?search=${params.searchId}&flight=${params.flightId}` })
+    }, 1200)
   })
-
-  if (!response.ok) {
-    throw new Error('Failed to generate booking URL')
-  }
-
-  return response.json()
 }
 
 export function useBooking() {
+  const { trackEvent } = useAnalytics()
+
   const mutation = useMutation({
-    mutationFn: generateBookingUrl,
+    mutationFn: (params: GenerateBookingUrlParams) => {
+      trackEvent('book_flight', 'booking', params.flightId, 1)
+      return generateBookingUrl(params)
+    },
     onSuccess: (data) => {
       if (data && data.bookingUrl) {
-        window.open(data.bookingUrl, '_blank', 'noopener,noreferrer')
+        window.open(data.bookingUrl, '_blank')
       }
-    },
-    onError: (error) => {
-      console.error('Booking URL generation failed:', error)
-      // Here you could show a toast notification to the user
-      alert('Sorry, we could not generate the booking link. Please try again.')
     },
   })
 

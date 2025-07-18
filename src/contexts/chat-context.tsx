@@ -1,7 +1,8 @@
 'use client'
 
-import { createContext, useContext, ReactNode } from 'react'
-import { useChat } from '@/hooks/use-chat'
+import { createContext, useContext, ReactNode, useMemo } from 'react'
+import { useChat as useChatHook, type UseChatOptions } from '@/hooks/use-chat'
+import { useAnalytics } from '@/hooks/use-analytics'
 import { ChatMessage, FlightSearchData } from '@/types/chat'
 import { useFlightSearchContext } from './flight-search-context'
 
@@ -12,40 +13,44 @@ const INITIAL_MESSAGE: ChatMessage = {
   createdAt: new Date(),
 }
 
-interface ChatContextType {
-  messages: ChatMessage[]
-  input: string
-  setInput: (value: string) => void
-  handleSubmit: (e?: React.FormEvent, flightData?: FlightSearchData) => void
-  isLoading: boolean
-  stop: () => void
-  reload: () => void
-  setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>
+type ChatContextType = ReturnType<typeof useChatHook> & {
+  trackEvent: (
+    action: string,
+    category: string,
+    label: string,
+    value: number,
+  ) => void
 }
 
-const ChatContext = createContext<ChatContextType | undefined>(undefined)
+const ChatContext = createContext<ChatContextType | null>(null)
 
 interface ChatProviderProps {
   children: ReactNode
 }
 
-export function ChatProvider({ children }: ChatProviderProps) {
+export const ChatProvider = ({
+  children,
+}: ChatProviderProps) => {
   const flightSearch = useFlightSearchContext()
-  const chat = useChat({
-    initialMessages: [INITIAL_MESSAGE],
-    onFlightSearchStart: flightSearch.startSearch,
-  })
+  const chat = useChatHook({ onFlightSearchStart: flightSearch.startSearch })
+  const { trackEvent } = useAnalytics()
+
+  const contextValue = useMemo(
+    () => ({
+      ...chat,
+      trackEvent,
+    }),
+    [chat, trackEvent],
+  )
 
   return (
-    <ChatContext.Provider value={chat}>
-      {children}
-    </ChatContext.Provider>
+    <ChatContext.Provider value={contextValue}>{children}</ChatContext.Provider>
   )
 }
 
 export function useChatContext() {
   const context = useContext(ChatContext)
-  if (context === undefined) {
+  if (context === null) {
     throw new Error('useChatContext must be used within a ChatProvider')
   }
   return context

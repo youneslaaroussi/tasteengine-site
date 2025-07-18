@@ -4,37 +4,42 @@ import { memo } from 'react'
 import { Button } from '@/components/ui/button'
 import { Plane, MapPin, Calendar, DollarSign } from 'lucide-react'
 import { useChatContext } from '@/contexts/chat-context'
+import { useAnalytics } from '@/hooks/use-analytics'
 
-interface StarterPromptsProps {}
+type Props = {
+  onPromptClick: (prompt: string) => void
+}
 
-const prompts = [
-  {
-    icon: <Plane className="w-4 h-4" />,
-    text: "Find me flights from New York to San Francisco for next weekend",
-  },
-  {
-    icon: <DollarSign className="w-4 h-4" />,
-    text: "Show me the cheapest flights from Los Angeles to Tokyo in March",
-  },
-  {
-    icon: <Calendar className="w-4 h-4" />,
-    text: "Plan a weekend trip from Chicago to Miami with flight recommendations",
-  },
-  {
-    icon: <MapPin className="w-4 h-4" />,
-    text: "What are the trending travel destinations right now?",
-  },
-]
+export const StarterPrompts = ({ onPromptClick }: Props) => {
+  const { trackEvent } = useAnalytics()
+  const { setInput, handleSubmit } = useChatContext()
 
-export const StarterPrompts = memo(({}: StarterPromptsProps) => {
-  const chat = useChatContext()
-  
+  const prompts = [
+    {
+      icon: <Plane className="w-4 h-4" />,
+      text: "Find me flights from New York to San Francisco for next weekend",
+    },
+    {
+      icon: <DollarSign className="w-4 h-4" />,
+      text: "Show me the cheapest flights from Los Angeles to Tokyo in March",
+    },
+    {
+      icon: <Calendar className="w-4 h-4" />,
+      text: "Plan a weekend trip from Chicago to Miami with flight recommendations",
+    },
+    {
+      icon: <MapPin className="w-4 h-4" />,
+      text: "What are the trending travel destinations right now?",
+    },
+  ]
+
   const handlePromptClick = (prompt: string) => {
-    chat.setInput(prompt)
-    setTimeout(() => {
-      chat.handleSubmit()
-    }, 100)
+    setInput(prompt)
+    trackEvent('starter_prompt', 'chat', prompt, 1)
+    onPromptClick(prompt)
+    handleSubmit()
   }
+
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
       <div className="text-center mb-8">
@@ -70,6 +75,6 @@ export const StarterPrompts = memo(({}: StarterPromptsProps) => {
       </div>
     </div>
   )
-})
+}
 
 StarterPrompts.displayName = 'StarterPrompts'

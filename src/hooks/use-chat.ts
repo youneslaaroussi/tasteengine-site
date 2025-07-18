@@ -3,13 +3,15 @@
 import { useState, useCallback, useRef } from 'react'
 import { ChatMessage, FlightSearchData } from '@/types/chat'
 import { nanoid } from 'nanoid';
+import { useAnalytics } from './use-analytics'
 
-interface UseChatOptions {
+export type UseChatOptions = {
   initialMessages?: ChatMessage[]
   onFlightSearchStart?: (searchId: string) => void
 }
 
 export function useChat({ initialMessages = [], onFlightSearchStart }: UseChatOptions = {}) {
+  const { trackEvent } = useAnalytics()
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages)
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -223,5 +225,6 @@ export function useChat({ initialMessages = [], onFlightSearchStart }: UseChatOp
     stop,
     reload,
     setMessages,
+    trackEvent,
   }
 }
