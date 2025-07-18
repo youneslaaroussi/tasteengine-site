@@ -4,7 +4,7 @@ import { useRef, useEffect, useCallback, memo } from 'react'
 import { ChatInput, ChatInputRef } from './chat-input'
 import { StarterPrompts } from './starter-prompts'
 import { useChatContext } from '@/contexts/chat-context'
-import { useFlightSearchContext } from '@/contexts/flight-search-context'
+import { useFlightSearchState, useFlightSearchData } from '@/contexts/flight-search-provider'
 import { usePrevious } from '@/hooks/use-previous'
 import { ChatMessage as ChatMessageType } from '@/types/chat'
 import { ChatMessage } from './chat-message'
@@ -19,8 +19,9 @@ export const ChatInterface = memo(({ className }: ChatInterfaceProps) => {
   
   // Get state from contexts
   const chat = useChatContext()
-  const flightSearch = useFlightSearchContext()
-  const wasSearching = usePrevious(flightSearch.isSearching)
+  const { searchId, isSearching } = useFlightSearchState()
+  const { flights } = useFlightSearchData()
+  const wasSearching = usePrevious(isSearching)
 
   // Auto-scroll to bottom when messages change
   const scrollToBottom = useCallback(() => {
@@ -40,18 +41,18 @@ export const ChatInterface = memo(({ className }: ChatInterfaceProps) => {
 
   // Effect to add flight results to chat history
   useEffect(() => {
-    if (wasSearching && !flightSearch.isSearching && flightSearch.flights.length > 0) {
+    if (wasSearching && !isSearching && flights.length > 0) {
       const flightMessage: ChatMessageType = {
         id: crypto.randomUUID(),
         role: 'data',
-        content: `I found ${flightSearch.flights.length} flights for you.`,
+        content: `I found ${flights.length} flights for you.`,
         createdAt: new Date(),
-        flights: flightSearch.flights,
-        searchId: flightSearch.searchId || undefined,
+        flights: flights,
+        searchId: searchId || undefined,
       };
       chat.setMessages(prev => [...prev, flightMessage]);
     }
-  }, [wasSearching, flightSearch.isSearching, flightSearch.flights, flightSearch.searchId, chat.setMessages]);
+  }, [wasSearching, isSearching, flights, searchId, chat.setMessages]);
 
 
   const hasUserMessages = chat.messages.some(msg => msg.role === 'user')
@@ -69,7 +70,7 @@ export const ChatInterface = memo(({ className }: ChatInterfaceProps) => {
         ))}
         
         {/* Show flight search status */}
-        {flightSearch.isSearching && (
+        {isSearching && (
           <div className="chat-message assistant bg-white mb-4">
             <div className="max-w-3xl mx-auto">
               <div className="flex gap-5">
@@ -81,7 +82,7 @@ export const ChatInterface = memo(({ className }: ChatInterfaceProps) => {
                 <div className="flex-1">
                   <div className="text-sm font-medium text-gray-900 mb-1">GoFlyTo</div>
                   <div className="text-gray-800">
-                    Searching for flights... Found {flightSearch.flights.length} options so far.
+                    Searching for flights... Found {flights.length} options so far.
                   </div>
                 </div>
               </div>

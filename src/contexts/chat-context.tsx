@@ -4,7 +4,7 @@ import { createContext, useContext, ReactNode, useMemo } from 'react'
 import { useChat as useChatHook, type UseChatOptions } from '@/hooks/use-chat'
 import { useAnalytics } from '@/hooks/use-analytics'
 import { ChatMessage, FlightSearchData } from '@/types/chat'
-import { useFlightSearchContext } from './flight-search-context'
+import { useFlightSearchActions } from './flight-search-provider'
 
 const INITIAL_MESSAGE: ChatMessage = {
   id: 'welcome',
@@ -31,8 +31,8 @@ interface ChatProviderProps {
 export const ChatProvider = ({
   children,
 }: ChatProviderProps) => {
-  const flightSearch = useFlightSearchContext()
-  const chat = useChatHook({ onFlightSearchStart: flightSearch.startSearch })
+  const { initiateSearch } = useFlightSearchActions()
+  const chat = useChatHook({ onFlightSearchStart: initiateSearch })
   const { trackEvent } = useAnalytics()
 
   const contextValue = useMemo(

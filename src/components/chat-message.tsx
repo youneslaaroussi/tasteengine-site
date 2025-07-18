@@ -7,7 +7,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { ChatMessage as ChatMessageType } from '@/types/chat'
 import { AdvancedMessageContent } from './message-renderer/advanced-message-content'
-import { FlightList } from './flight-list'
+import { FlightListChat } from './flight-search/flight-list-chat'
 
 interface ChatMessageProps {
   message: ChatMessageType
@@ -45,7 +45,7 @@ export const ChatMessage = memo(({ message, isStreaming }: ChatMessageProps) => 
               <div className="text-sm font-medium text-gray-900 mb-1">GoFlyTo</div>
               <div className="text-gray-800">
                 <p className="mb-3">{message.content}</p>
-                <FlightList flights={message.flights} searchId={message.searchId} />
+                <FlightListChat flights={message.flights} searchId={message.searchId} />
               </div>
             </div>
           </div>

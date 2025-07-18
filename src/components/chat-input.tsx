@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { useChatContext } from '@/contexts/chat-context'
-import { useFlightSearchContext } from '@/contexts/flight-search-context'
+import { useFlightSearchData, useFlightSearchState } from '@/contexts/flight-search-provider'
 
 interface ChatInputProps {
   placeholder?: string
@@ -20,7 +20,8 @@ export interface ChatInputRef {
 export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
   ({ placeholder = "Message GoFlyTo...", className }, ref) => {
     const chat = useChatContext()
-    const flightSearch = useFlightSearchContext()
+    const { flights, pricingTokens } = useFlightSearchData()
+  const { searchId, isSearching } = useFlightSearchState()
     const textareaRef = useRef<HTMLTextAreaElement>(null)
 
     // Auto-resize textarea
@@ -46,28 +47,28 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
         e.preventDefault()
         if (!chat.isLoading && chat.input.trim()) {
           const flightData = {
-            searchId: flightSearch.searchId,
-            flights: flightSearch.flights,
-            pricingTokens: flightSearch.pricingTokens,
+            searchId: searchId,
+            flights: flights,
+            pricingTokens: pricingTokens,
           }
           chat.handleSubmit(e, flightData)
           chat.trackEvent('send_message', 'chat', 'chat_message', 1)
         }
       }
-    }, [chat, flightSearch])
+    }, [chat, searchId, flights, pricingTokens])
 
     const handleSubmit = useCallback((e: React.FormEvent) => {
       e.preventDefault()
       if (!chat.isLoading && chat.input.trim()) {
         const flightData = {
-          searchId: flightSearch.searchId,
-          flights: flightSearch.flights,
-          pricingTokens: flightSearch.pricingTokens,
+          searchId: searchId,
+          flights: flights,
+          pricingTokens: pricingTokens,
         }
         chat.handleSubmit(e, flightData)
         chat.trackEvent('send_message', 'chat', 'chat_message', 1)
       }
-    }, [chat, flightSearch])
+    }, [chat, searchId, flights, pricingTokens])
 
     // Expose focus method
     useImperativeHandle(ref, () => ({
@@ -92,7 +93,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
               />
               
               <div className="flex-shrink-0">
-                {chat.isLoading || flightSearch.isSearching ? (
+                {chat.isLoading || isSearching ? (
                   <Button
                     type="button"
                     onClick={chat.stop}
