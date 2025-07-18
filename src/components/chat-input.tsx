@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { useChatContext } from '@/contexts/chat-context'
 import { useFlightSearchData, useFlightSearchState } from '@/contexts/flight-search-provider'
+import { useIsMobile } from '@/hooks/use-mobile'
 
 interface ChatInputProps {
   placeholder?: string
@@ -21,7 +22,8 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
   ({ placeholder = "Message GoFlyTo...", className }, ref) => {
     const chat = useChatContext()
     const { flights, pricingTokens } = useFlightSearchData()
-  const { searchId, isSearching } = useFlightSearchState()
+    const { searchId, isSearching } = useFlightSearchState()
+    const isMobile = useIsMobile()
     const textareaRef = useRef<HTMLTextAreaElement>(null)
 
     // Auto-resize textarea
@@ -44,6 +46,12 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
 
     const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
       if (e.key === 'Enter' && !e.shiftKey) {
+        // On mobile, Enter should create a new line, not submit
+        if (isMobile) {
+          return // Let the default behavior happen (new line)
+        }
+        
+        // On desktop, Enter submits the message
         e.preventDefault()
         if (!chat.isLoading && chat.input.trim()) {
           const flightData = {
@@ -55,7 +63,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
           chat.trackEvent('send_message', 'chat', 'chat_message', 1)
         }
       }
-    }, [chat, searchId, flights, pricingTokens])
+    }, [chat, searchId, flights, pricingTokens, isMobile])
 
     const handleSubmit = useCallback((e: React.FormEvent) => {
       e.preventDefault()
