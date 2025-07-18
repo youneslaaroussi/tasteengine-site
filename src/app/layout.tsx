@@ -7,6 +7,7 @@ import { Toaster } from 'sonner'
 import { Suspense } from 'react'
 import { cn } from "@/lib/utils"
 import { fontSans } from "@/lib/fonts"
+import { ChatLayoutWithHistory } from "@/components/chat-layout-with-history"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -21,7 +22,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: "https://goflyto.com",
+    url: "https://gofly.to",
     siteName: "GoFlyTo",
     title: "GoFlyTo - AI Travel Assistant",
     description: "Find the best flight deals with AI-powered search. Compare prices across multiple airlines instantly.",
@@ -41,14 +42,7 @@ export const metadata: Metadata = {
     title: "GoFlyTo",
   },
   
-  // Mobile optimization
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-    maximumScale: 1,
-    userScalable: false,
-    viewportFit: "cover",
-  },
+
   
   // Enhanced format detection for mobile
   formatDetection: {
@@ -81,6 +75,14 @@ export const metadata: Metadata = {
   category: "Travel",
 }
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover",
+}
+
 export default function RootLayout({
   children,
 }: {
@@ -104,7 +106,7 @@ export default function RootLayout({
               "@type": "WebApplication",
               "name": "GoFlyTo",
               "description": "AI-powered travel assistant for finding the best flight deals",
-              "url": "https://goflyto.com",
+              "url": "https://gofly.to",
               "applicationCategory": "Travel",
               "operatingSystem": "Any",
               "offers": {
@@ -133,9 +135,9 @@ export default function RootLayout({
           <Analytics />
         </Suspense>
         <Providers>
-          <main className="flex min-h-screen flex-col items-center">
+          <ChatLayoutWithHistory>
             {children}
-          </main>
+          </ChatLayoutWithHistory>
         </Providers>
         <Toaster />
       </body>

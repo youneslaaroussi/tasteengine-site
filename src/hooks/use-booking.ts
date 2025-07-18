@@ -15,7 +15,7 @@ async function generateBookingUrl(params: GenerateBookingUrlParams): Promise<{ b
   console.log('Generating booking URL for', params)
   return new Promise(resolve => {
     setTimeout(() => {
-      resolve({ bookingUrl: `https://goflyto.com/book?search=${params.searchId}&flight=${params.flightId}` })
+      resolve({ bookingUrl: `https://gofly.to/book?search=${params.searchId}&flight=${params.flightId}` })
     }, 1200)
   })
 }

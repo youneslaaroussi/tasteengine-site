@@ -57,9 +57,9 @@ export const ChatInterface = memo(({ className }: ChatInterfaceProps) => {
   const hasUserMessages = chat.messages.some(msg => msg.role === 'user')
 
   return (
-    <div className={`chat-container ${className || ''}`}>
+    <div className={`h-full flex flex-col bg-white ${className || ''}`}>
       {/* Messages */}
-      <div className="chat-messages custom-scrollbar">
+      <div className="flex-1 overflow-y-auto custom-scrollbar">
         {chat.messages.map((message, index) => (
           <ChatMessage
             key={message.id}

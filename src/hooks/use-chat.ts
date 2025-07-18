@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useCallback, useRef } from 'react'
+import { useCallback, useRef } from 'react'
 import { ChatMessage, FlightSearchData } from '@/types/chat'
-import { nanoid } from 'nanoid';
+import { nanoid } from 'nanoid'
 import { useAnalytics } from './use-analytics'
+import { useChatStore } from '@/stores/chat-store'
 
 export type UseChatOptions = {
   initialMessages?: ChatMessage[]
@@ -12,27 +13,41 @@ export type UseChatOptions = {
 
 export function useChat({ initialMessages = [], onFlightSearchStart }: UseChatOptions = {}) {
   const { trackEvent } = useAnalytics()
-  const [messages, setMessages] = useState<ChatMessage[]>(initialMessages)
-  const [input, setInput] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
   const abortControllerRef = useRef<AbortController | null>(null)
+  
+  const {
+    currentSession,
+    input,
+    isLoading,
+    addMessage,
+    updateMessage,
+    setInput,
+    setLoading,
+    createSession,
+  } = useChatStore()
+
+  // Initialize session if needed and has initial messages
+  if (!currentSession && initialMessages.length > 0) {
+    createSession()
+    initialMessages.forEach(msg => addMessage(msg))
+  }
+
+  const messages = currentSession?.messages || []
 
   const handleSubmit = useCallback(async (e?: React.FormEvent, flightData?: FlightSearchData) => {
     e?.preventDefault()
     
     if (!input.trim() || isLoading) return
 
-    const userMessage: ChatMessage = {
-      id: crypto.randomUUID(),
+    const userMessage: Omit<ChatMessage, 'id' | 'createdAt'> = {
       role: 'user',
       content: input.trim(),
-      createdAt: new Date(),
     }
 
-    // Optimistically add user message
-    setMessages(prev => [...prev, userMessage])
+    // Add user message through store
+    addMessage(userMessage)
     setInput('')
-    setIsLoading(true)
+    setLoading(true)
 
     // Create abort controller for this request
     const controller = new AbortController()
@@ -40,10 +55,15 @@ export function useChat({ initialMessages = [], onFlightSearchStart }: UseChatOp
 
     try {
       // Keep track of tool call IDs
-      const toolCallIds: Record<string, string> = {};
+      const toolCallIds: Record<string, string> = {}
 
       // Prepare conversation history
-      const conversationHistory: Array<{ role: string; content: string }> = [...messages, userMessage].map(msg => ({
+      const conversationHistory: Array<{ role: string; content: string }> = [...messages, {
+        id: crypto.randomUUID(),
+        role: 'user',
+        content: input.trim(),
+        createdAt: new Date(),
+      }].map(msg => ({
         role: msg.role,
         content: msg.content,
       }))
@@ -83,14 +103,20 @@ export function useChat({ initialMessages = [], onFlightSearchStart }: UseChatOp
       }
 
       // Create assistant message
-      const assistantMessage: ChatMessage = {
-        id: crypto.randomUUID(),
+      const assistantMessage: Omit<ChatMessage, 'id' | 'createdAt'> = {
         role: 'assistant',
         content: '',
-        createdAt: new Date(),
       }
 
-      setMessages(prev => [...prev, assistantMessage])
+      addMessage(assistantMessage)
+      
+      // Get the assistant message ID after it's added
+      const currentMessages = useChatStore.getState().currentSession?.messages || []
+      const assistantMsg = currentMessages[currentMessages.length - 1]
+      
+      if (!assistantMsg) {
+        throw new Error('Failed to create assistant message')
+      }
 
       // Process streaming response
       const reader = response.body.getReader()
@@ -108,43 +134,36 @@ export function useChat({ initialMessages = [], onFlightSearchStart }: UseChatOp
         for (const line of lines) {
           if (line.trim().startsWith('data: ')) {
             try {
-              const data = JSON.parse(line.slice(6));
+              const data = JSON.parse(line.slice(6))
 
               if (data.type === 'content_stream' && data.content) {
-                setMessages(prev => prev.map(msg => 
-                  msg.id === assistantMessage.id 
-                    ? { ...msg, content: msg.content + data.content }
-                    : msg
-                ))
+                // Update the assistant message content
+                updateMessage(assistantMsg.id, (prevContent) => prevContent + data.content)
               } 
               
               else if (data.type === 'tool_start' && data.toolName) {
-                const toolId = nanoid();
-                toolCallIds[data.toolName] = toolId;
+                const toolId = nanoid()
+                toolCallIds[data.toolName] = toolId
                 
-                const toolMarkdown = `\n{% tool_start '${data.toolName}' '${toolId}' %}\n{% tool_description %}${data.toolDescription || 'Processing...'}{% end_tool_description %}\n{% endtool %}\n`;
-                setMessages(prev => prev.map(msg => 
-                  msg.id === assistantMessage.id 
-                    ? { ...msg, content: msg.content + toolMarkdown }
-                    : msg
-                ))
+                const toolMarkdown = `\n{% tool_start '${data.toolName}' '${toolId}' %}\n{% tool_description %}${data.toolDescription || 'Processing...'}{% end_tool_description %}\n{% endtool %}\n`
+                updateMessage(assistantMsg.id, (prevContent) => prevContent + toolMarkdown)
               }
               
               else if (data.type === 'tool_complete' && data.toolName) {
                 if (data.toolName === 'initiate_flight_search') {
-                  const toolData = data.data;
+                  const toolData = data.data
                   if (toolData) {
-                    const callKey = Object.keys(toolData)[0];
-                    const searchId = toolData[callKey]?.searchId;
+                    const callKey = Object.keys(toolData)[0]
+                    const searchId = toolData[callKey]?.searchId
 
                     if (searchId && onFlightSearchStart) {
-                      onFlightSearchStart(searchId);
+                      onFlightSearchStart(searchId)
                     }
                   }
                 }
 
-                const toolId = toolCallIds[data.toolName];
-                if (!toolId) return;
+                const toolId = toolCallIds[data.toolName]
+                if (!toolId) continue
 
                 let toolMarkdown = `{% tool_complete '${data.toolName}' '${toolId}' %}\n`
                 
@@ -170,11 +189,12 @@ export function useChat({ initialMessages = [], onFlightSearchStart }: UseChatOp
                 }
                 toolMarkdown += '\n{% endtool %}\n'
                 
-                setMessages(prev => prev.map(msg => 
-                  msg.id === assistantMessage.id 
-                    ? { ...msg, content: msg.content.replace(`{% tool_start '${data.toolName}' '${toolId}' %}`, `{% tool_complete '${data.toolName}' '${toolId}' %}`) + toolMarkdown }
-                    : msg
-                ))
+                updateMessage(assistantMsg.id, (prevContent) => {
+                  return prevContent.replace(
+                    `{% tool_start '${data.toolName}' '${toolId}' %}`, 
+                    `{% tool_complete '${data.toolName}' '${toolId}' %}`
+                  ) + toolMarkdown
+                })
               }
             } catch (parseError) {
               console.error('Error parsing stream data:', parseError)
@@ -187,18 +207,16 @@ export function useChat({ initialMessages = [], onFlightSearchStart }: UseChatOp
         console.log('Request was aborted')
       } else {
         console.error('Chat error:', error)
-        setMessages(prev => [...prev, {
-          id: crypto.randomUUID(),
+        addMessage({
           role: 'assistant',
           content: "I'm sorry, I encountered an error. Please try again.",
-          createdAt: new Date(),
-        }])
+        })
       }
     } finally {
-      setIsLoading(false)
+      setLoading(false)
       abortControllerRef.current = null
     }
-  }, [input, messages, isLoading, onFlightSearchStart])
+  }, [input, messages, isLoading, onFlightSearchStart, addMessage, updateMessage, setInput, setLoading])
 
   const stop = useCallback(() => {
     if (abortControllerRef.current) {
@@ -212,9 +230,36 @@ export function useChat({ initialMessages = [], onFlightSearchStart }: UseChatOp
     const lastUserMessage = [...messages].reverse().find(msg => msg.role === 'user')
     if (lastUserMessage) {
       setInput(lastUserMessage.content)
-      setMessages(prev => prev.slice(0, prev.findIndex(msg => msg.id === lastUserMessage.id)))
+      // Remove messages after the last user message
+      const userMessageIndex = messages.findIndex(msg => msg.id === lastUserMessage.id)
+      if (userMessageIndex !== -1) {
+        // We need to update the session to remove messages after this index
+        const newMessages = messages.slice(0, userMessageIndex)
+        if (currentSession) {
+          currentSession.messages = newMessages
+        }
+      }
     }
-  }, [messages])
+  }, [messages, setInput, currentSession])
+
+  // Legacy compatibility - some components might still use setMessages
+  const setMessages = useCallback((messages: ChatMessage[] | ((prev: ChatMessage[]) => ChatMessage[])) => {
+    // This is a compatibility shim - in practice, we should use the store methods
+    console.warn('setMessages is deprecated, use the store methods instead')
+    if (typeof messages === 'function') {
+      // Handle function updates
+      const newMessages = messages(currentSession?.messages || [])
+      // Clear current messages and add new ones
+      if (currentSession) {
+        currentSession.messages = newMessages
+      }
+    } else {
+      // Handle direct array updates
+      if (currentSession) {
+        currentSession.messages = messages
+      }
+    }
+  }, [currentSession])
 
   return {
     messages,
@@ -224,7 +269,7 @@ export function useChat({ initialMessages = [], onFlightSearchStart }: UseChatOp
     isLoading,
     stop,
     reload,
-    setMessages,
+    setMessages, // Legacy compatibility
     trackEvent,
   }
-}
+} 

@@ -39,7 +39,7 @@ export const FlightCard = memo(({ flight, searchId }: FlightCardProps) => {
     generateBookingUrl({
       searchId,
       flightId: flight.id,
-      termsUrl: 'https://goflyto.com/terms',
+      termsUrl: 'https://gofly.to/terms',
     })
   }
 
