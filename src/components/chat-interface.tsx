@@ -70,9 +70,9 @@ export const ChatInterface = memo(({ className }: ChatInterfaceProps) => {
         
         {/* Show flight search status */}
         {flightSearch.isSearching && (
-          <div className="chat-message assistant bg-white">
+          <div className="chat-message assistant bg-white mb-4">
             <div className="max-w-3xl mx-auto">
-              <div className="flex gap-4">
+              <div className="flex gap-5">
                 <div className="flex-shrink-0">
                   <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center">
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -91,7 +91,7 @@ export const ChatInterface = memo(({ className }: ChatInterfaceProps) => {
 
         {/* Show starter prompts only if no user messages */}
         {!hasUserMessages && !chat.isLoading && (
-          <div className="pt-8">
+          <div className="pt-8 px-3 md:px-4">
             <StarterPrompts onPromptClick={() => {}} />
           </div>
         )}
