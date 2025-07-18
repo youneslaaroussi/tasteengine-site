@@ -3,6 +3,7 @@
 
 import { useMutation } from '@tanstack/react-query'
 import { useAnalytics } from './use-analytics'
+import { toast } from 'sonner'
 
 interface GenerateBookingUrlParams {
   searchId: string
@@ -46,6 +47,10 @@ export function useBooking() {
       if (data && data.bookingUrl) {
         window.open(data.bookingUrl, '_blank')
       }
+    },
+    onError: (error) => {
+      console.error('Booking error:', error)
+      toast.error('Failed to generate booking URL. Please try again.')
     },
   })
 
