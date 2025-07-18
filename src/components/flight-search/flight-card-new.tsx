@@ -105,7 +105,7 @@ export const FlightCard = memo(({
       await generateBookingUrl({
         searchId,
         flightId: flight.id,
-        termsUrl: 'https://gofly.to/terms',
+        termsUrl: flight.pricingToken,
       })
       
       trackEvent('flight_booking', 'attempt', flight.id, flight.price)

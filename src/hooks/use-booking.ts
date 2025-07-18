@@ -10,14 +10,25 @@ interface GenerateBookingUrlParams {
   termsUrl: string
 }
 
-async function generateBookingUrl(params: GenerateBookingUrlParams): Promise<{ bookingUrl: string }> {
-  // This would be a call to your backend
-  console.log('Generating booking URL for', params)
-  return new Promise(resolve => {
-    setTimeout(() => {
-      resolve({ bookingUrl: `https://gofly.to/book?search=${params.searchId}&flight=${params.flightId}` })
-    }, 1200)
+async function generateBookingUrl(params: { searchId: string, termsUrl: string }): Promise<{ bookingUrl: string }> {
+  const response = await fetch('https://api.gofly.to/booking/generate-booking-url', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      searchId: params.searchId,
+      termsUrl: params.termsUrl,
+    }),
   })
+
+  if (!response.ok) {
+    const errorBody = await response.text()
+    console.error('Booking API error:', errorBody)
+    throw new Error(`Booking failed: ${response.statusText}`)
+  }
+
+  return response.json()
 }
 
 export function useBooking() {
@@ -26,7 +37,10 @@ export function useBooking() {
   const mutation = useMutation({
     mutationFn: (params: GenerateBookingUrlParams) => {
       trackEvent('book_flight', 'booking', params.flightId, 1)
-      return generateBookingUrl(params)
+      return generateBookingUrl({
+        searchId: params.searchId,
+        termsUrl: params.termsUrl,
+      })
     },
     onSuccess: (data) => {
       if (data && data.bookingUrl) {

@@ -16,7 +16,7 @@ export function ChatLayoutWithHistory({ children }: ChatLayoutWithHistoryProps) 
 
   return (
     <SidebarProvider>
-      <div className="flex h-screen w-full">
+      <div className="flex h-dvh w-full">
         {/* Sidebar for both mobile and desktop */}
         <ChatHistorySidebar />
         
@@ -33,8 +33,8 @@ export function ChatLayoutWithHistory({ children }: ChatLayoutWithHistoryProps) 
             </div>
             
             {/* Main content */}
-            <div className="flex-1 flex justify-center">
-              <div className="w-full max-w-4xl">
+            <div className="flex-1 flex justify-center min-h-0">
+              <div className="w-full max-w-4xl h-full">
                 {children}
               </div>
             </div>

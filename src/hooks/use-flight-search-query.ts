@@ -126,9 +126,19 @@ export function useFlightSearchQuery(options: UseFlightSearchQueryOptions = {}) 
   useEffect(() => {
     if (data) {
       updateFlights(data)
-      options.onSuccess?.()
     }
-  }, [data, updateFlights, options])
+  }, [data, updateFlights])
+
+  // Process new flights when they are added to the store
+  const newFlights = useFlightSearchStore(state => state.newFlights)
+  const clearNewFlights = useFlightSearchStore(state => state.clearNewFlights)
+
+  useEffect(() => {
+    if (newFlights.length > 0) {
+      options.onSuccess?.()
+      clearNewFlights()
+    }
+  }, [newFlights, clearNewFlights, options])
 
   // Handle errors
   useEffect(() => {

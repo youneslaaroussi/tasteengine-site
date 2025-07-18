@@ -21,6 +21,7 @@ interface FlightSearchState {
   
   // Flight data
   flights: BookingFlightOption[]
+  newFlights: BookingFlightOption[]
   pricingTokens: Record<string, string>
   
   // UI state
@@ -49,6 +50,7 @@ interface FlightSearchActions {
   // Flight data updates
   updateFlights: (response: ProgressiveSearchResponse) => void
   addFlights: (newFlights: BookingFlightOption[], pricingTokens: Record<string, string>) => void
+  clearNewFlights: () => void
   
   // Sorting and filtering
   setSortBy: (sortBy: SortOption) => void
@@ -69,6 +71,7 @@ const initialState: FlightSearchState = {
   searchId: null,
   searchStatus: null,
   flights: [],
+  newFlights: [],
   pricingTokens: {},
   isSearching: false,
   error: null,
@@ -171,6 +174,7 @@ export const useFlightSearchStore = create<FlightSearchStore>()(
         state.isSearching = true
         state.error = null
         state.flights = []
+        state.newFlights = []
         state.pricingTokens = {}
         state.displayedFlights = []
         state.hasMoreResults = true
@@ -197,19 +201,31 @@ export const useFlightSearchStore = create<FlightSearchStore>()(
         state.searchStatus = response.status
         state.hasMoreResults = response.hasMoreResults
         
-        // Update flights and pricing tokens
+        // Add new flights to a temporary array to avoid re-triggering effects
+        const newFlights: BookingFlightOption[] = []
         response.newFlights.forEach((flight) => {
+          // IMPORTANT: Attach the pricing token to the flight object
+          const flightWithToken = {
+            ...flight,
+            pricingToken: response.pricingTokens[flight.id],
+          }
+
           const existingIndex = state.flights.findIndex(f => f.id === flight.id)
           if (existingIndex === -1) {
-            state.flights.push(flight)
+            newFlights.push(flightWithToken)
           } else {
-            state.flights[existingIndex] = flight
+            state.flights[existingIndex] = flightWithToken
           }
           
           if (response.pricingTokens[flight.id]) {
             state.pricingTokens[flight.id] = response.pricingTokens[flight.id]
           }
         })
+        
+        if (newFlights.length > 0) {
+          state.newFlights = newFlights
+          state.flights.push(...newFlights)
+        }
         
         // Update search status
         const isCompleted = response.status.status === 'completed' || response.status.status === 'expired'
@@ -226,6 +242,12 @@ export const useFlightSearchStore = create<FlightSearchStore>()(
         // Re-apply filters and sorting
         const filtered = filterFlights(state.flights, state.filters)
         state.displayedFlights = sortFlights(filtered, state.sortBy)
+      })
+    },
+    
+    clearNewFlights: () => {
+      set((state) => {
+        state.newFlights = []
       })
     },
     

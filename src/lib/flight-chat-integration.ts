@@ -17,7 +17,7 @@ export interface FlightMessageData {
  */
 export function createFlightResultMessage(data: FlightMessageData): Omit<ChatMessage, 'id' | 'createdAt'> {
   const { flights, searchId, totalFound } = data
-  
+
   return {
     role: 'data',
     content: `I found ${totalFound} flight${totalFound !== 1 ? 's' : ''} for you.`,
@@ -41,11 +41,11 @@ export async function addFlightResultsToChat(
 
     const flightMessage = createFlightResultMessage(data)
     addMessage(flightMessage)
-    
+
     console.log(`Successfully added ${data.totalFound} flights to chat history`)
   } catch (error) {
     console.error('Error adding flight results to chat:', error)
-    
+
     // Add a fallback message if the detailed message fails
     try {
       addMessage({
@@ -67,9 +67,9 @@ export function shouldAddFlightResults(
   flights: BookingFlightOption[]
 ): boolean {
   return (
-    wasSearching && 
-    !isSearching && 
-    flights && 
+    wasSearching &&
+    !isSearching &&
+    flights &&
     flights.length > 0
   )
 }
