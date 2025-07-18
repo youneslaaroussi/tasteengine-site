@@ -23,19 +23,26 @@ export function FlightList({ flights, searchId }: FlightListProps) {
 
     return [...flights].sort((a, b) => {
       if (sortBy === 'cheapest') {
-        return a.price - b.price
+        const priceA = typeof a.price === 'number' ? a.price : Number.MAX_SAFE_INTEGER
+        const priceB = typeof b.price === 'number' ? b.price : Number.MAX_SAFE_INTEGER
+        return priceA - priceB
       }
       
       if (sortBy === 'fastest') {
         // Convert duration to minutes for comparison
-        const getDurationInMinutes = (duration: string) => {
+        const getDurationInMinutes = (duration?: string) => {
+          if (!duration) {
+            // Put flights with missing duration at the end when sorting
+            return Number.MAX_SAFE_INTEGER
+          }
           const match = duration.match(/(\d+)h\s*(\d+)?m?/)
           if (match) {
             const hours = parseInt(match[1]) || 0
             const minutes = parseInt(match[2]) || 0
             return hours * 60 + minutes
           }
-          return 0
+          // If the format is unexpected, push it to the end as well
+          return Number.MAX_SAFE_INTEGER
         }
         
         const aDuration = getDurationInMinutes(a.totalDuration)
