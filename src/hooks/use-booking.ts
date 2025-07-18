@@ -11,7 +11,7 @@ interface GenerateBookingUrlParams {
 }
 
 async function generateBookingUrl(params: { searchId: string, termsUrl: string }): Promise<{ bookingUrl: string }> {
-  const response = await fetch('https://api.gofly.to/booking/generate-booking-url', {
+  const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/booking/generate-booking-url`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
