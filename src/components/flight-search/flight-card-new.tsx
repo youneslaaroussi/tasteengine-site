@@ -80,6 +80,61 @@ const FlightSegmentCard = memo(({ segment, isLast }: FlightSegmentCardProps) => 
 })
 FlightSegmentCard.displayName = 'FlightSegmentCard'
 
+export const FlightCardSkeleton = () => {
+  const isMobile = useIsMobile()
+
+  if (isMobile) {
+    return (
+      <Card className="overflow-hidden shadow-sm">
+        <CardHeader className="p-4">
+          <div className="flex justify-between items-start">
+            <div className="flex-1 min-w-0 space-y-2">
+              <div className="h-5 bg-gray-200 rounded w-3/4 animate-pulse"></div>
+              <div className="h-4 bg-gray-200 rounded w-1/2 animate-pulse"></div>
+              <div className="h-4 bg-gray-200 rounded w-1/3 animate-pulse"></div>
+            </div>
+            <div className="flex flex-col items-end ml-4 space-y-2">
+              <div className="h-6 bg-gray-200 rounded w-16 animate-pulse"></div>
+              <div className="h-4 w-4 bg-gray-200 rounded-full animate-pulse"></div>
+            </div>
+          </div>
+        </CardHeader>
+      </Card>
+    )
+  }
+
+  return (
+    <Card className="overflow-hidden shadow-sm">
+      <CardHeader className="p-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <div className="w-10 h-10 bg-gray-200 rounded-full animate-pulse"></div>
+            <div className="space-y-2">
+              <div className="h-5 bg-gray-200 rounded w-48 animate-pulse"></div>
+              <div className="h-4 bg-gray-200 rounded w-32 animate-pulse"></div>
+            </div>
+          </div>
+          <div className="flex items-center space-x-4">
+            <div className="space-y-2 text-right">
+              <div className="h-5 bg-gray-200 rounded w-24 animate-pulse"></div>
+              <div className="h-4 bg-gray-200 rounded w-16 animate-pulse"></div>
+            </div>
+            <div className="w-px h-10 bg-gray-200"></div>
+            <div className="space-y-2 text-right">
+              <div className="h-5 bg-gray-200 rounded w-24 animate-pulse"></div>
+              <div className="h-4 bg-gray-200 rounded w-16 animate-pulse"></div>
+            </div>
+          </div>
+          <div className="flex flex-col items-end space-y-2">
+            <div className="h-8 bg-gray-200 rounded w-28 animate-pulse"></div>
+            <div className="h-4 bg-gray-200 rounded w-20 animate-pulse"></div>
+          </div>
+        </div>
+      </CardHeader>
+    </Card>
+  )
+}
+
 export const FlightCard = memo(({ 
   flight, 
   searchId, 
@@ -167,7 +222,7 @@ export const FlightCard = memo(({
               </div>
             </div>
             <div className="flex flex-col items-end ml-4">
-              <div className="font-bold text-lg text-blue-600">
+              <div className="font-bold text-lg text-blue-600 font-price">
                 {formatCurrency(flight.price, flight.currency)}
               </div>
               <ChevronDown
@@ -280,7 +335,7 @@ export const FlightCard = memo(({
           
           <div className="flex items-center space-x-4">
             <div className="text-right">
-              <div className="font-bold text-2xl text-blue-600">
+              <div className="font-bold text-2xl text-blue-600 font-price">
                 {formatCurrency(flight.price, flight.currency)}
               </div>
               <div className="text-xs text-gray-500 uppercase">

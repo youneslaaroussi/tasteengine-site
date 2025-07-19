@@ -1,5 +1,5 @@
 {
-  "name": "GoFlyTo - Your Travel Assistant",
+  "name": "GoFlyTo",
   "short_name": "GoFlyTo",
   "description": "AI-powered travel planning assistant",
   "icons": [
@@ -17,6 +17,5 @@
   "theme_color": "#ffffff",
   "background_color": "#ffffff",
   "display": "standalone",
-  "start_url": "/",
-  "orientation": "portrait"
+  "permissions": ["notifications"]
 }

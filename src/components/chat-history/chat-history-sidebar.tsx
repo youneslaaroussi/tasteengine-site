@@ -48,6 +48,7 @@ import {
   openImportFilePicker, 
   getStorageStats 
 } from '@/lib/chat-storage'
+import { toast } from 'sonner'
 
 export function ChatHistorySidebar() {
   const [searchQuery, setSearchQuery] = useState('')
@@ -101,7 +102,7 @@ export function ChatHistorySidebar() {
       },
       (error) => {
         console.error('Import failed:', error)
-        // TODO: Add toast notification
+        toast.error('Failed to import chats')
       }
     )
   }

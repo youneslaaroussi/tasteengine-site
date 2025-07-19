@@ -41,6 +41,7 @@ import {
   openImportFilePicker, 
   getStorageStats 
 } from '@/lib/chat-storage'
+import { toast } from 'sonner'
 
 interface ChatHistorySheetProps {
   children: React.ReactNode
@@ -106,7 +107,7 @@ export function ChatHistorySheet({ children }: ChatHistorySheetProps) {
       },
       (error) => {
         console.error('Import failed:', error)
-        // TODO: Add toast notification
+        toast.error('Failed to import chats')
       }
     )
   }

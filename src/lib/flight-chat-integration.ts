@@ -27,6 +27,16 @@ export function createFlightResultMessage(data: FlightMessageData): Omit<ChatMes
 }
 
 /**
+ * Creates a system message for flight loading completion
+ */
+export function createFlightLoadedSystemMessage(): Omit<ChatMessage, 'id' | 'createdAt'> {
+  return {
+    role: 'system',
+    content: 'Flights loaded successfully.',
+  }
+}
+
+/**
  * Safely adds flight results to chat history
  */
 export async function addFlightResultsToChat(
@@ -42,7 +52,12 @@ export async function addFlightResultsToChat(
     const flightMessage = createFlightResultMessage(data)
     addMessage(flightMessage)
 
-    console.log(`Successfully added ${data.totalFound} flights to chat history`)
+    // Auto-send system message indicating flights loaded successfully
+    setTimeout(() => {
+      const systemMessage = createFlightLoadedSystemMessage()
+      addMessage(systemMessage)
+    }, 500) // Small delay to ensure proper message ordering
+
   } catch (error) {
     console.error('Error adding flight results to chat:', error)
 

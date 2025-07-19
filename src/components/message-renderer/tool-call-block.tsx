@@ -30,7 +30,6 @@ const getToolDisplayName = (tool: string) => {
     return toolNames[tool] || tool.replace(/_/g, ' ')
 };
 
-
 export const ToolCallBlock = memo(({ toolCall }: ToolCallBlockProps) => {
   const { toolName, description, isComplete, data } = toolCall;
 
@@ -38,10 +37,10 @@ export const ToolCallBlock = memo(({ toolCall }: ToolCallBlockProps) => {
   const shouldRenderFlightResults = flightTools.includes(toolName) && isComplete && data && data.flights;
 
   return (
-    <div>
+    <div className="w-full">
       <div
         className={cn(
-          'flex items-center gap-3 p-3 rounded-lg border',
+          'flex items-center gap-3 p-3 rounded-lg border w-full',
           isComplete
             ? 'bg-green-50 border-green-200 text-green-800'
             : 'bg-blue-50 border-blue-200 text-blue-800'
@@ -54,8 +53,8 @@ export const ToolCallBlock = memo(({ toolCall }: ToolCallBlockProps) => {
             <Loader2 className="w-4 h-4 animate-spin" />
           )}
         </div>
-        <div className="flex-1 min-w-0">
-          <div className="text-sm font-medium">{getToolDisplayName(toolName)}</div>
+        <div className="flex-1 min-w-0 overflow-hidden">
+          <div className="text-sm font-medium truncate">{getToolDisplayName(toolName)}</div>
           {description && (
             <div className="text-xs opacity-75 truncate">{description}</div>
           )}
@@ -66,4 +65,4 @@ export const ToolCallBlock = memo(({ toolCall }: ToolCallBlockProps) => {
   );
 });
 
-ToolCallBlock.displayName = 'ToolCallBlock'; 
+ToolCallBlock.displayName = 'ToolCallBlock';

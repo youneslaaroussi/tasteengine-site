@@ -1,5 +1,5 @@
 import type { Metadata } from "next"
-import { Inter } from "next/font/google"
+import { Inter, JetBrains_Mono } from "next/font/google"
 import "./globals.css"
 import { Providers } from "@/components/providers"
 import { Analytics } from '@/components/analytics'
@@ -10,6 +10,11 @@ import { fontSans } from "@/lib/fonts"
 import { ChatLayoutWithHistory } from "@/components/chat-layout-with-history"
 
 const inter = Inter({ subsets: ["latin"] })
+const jetbrainsMono = JetBrains_Mono({ 
+  subsets: ["latin"],
+  variable: '--font-mono-price',
+  display: 'swap',
+})
 
 export const metadata: Metadata = {
   title: "GoFlyTo - AI Travel Assistant",
@@ -129,6 +134,7 @@ export default function RootLayout({
         className={cn(
           'h-dvh bg-background font-sans antialiased',
           fontSans.variable,
+          jetbrainsMono.variable,
         )}
       >
         <Suspense>

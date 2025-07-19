@@ -4,12 +4,10 @@ import { useRef, useEffect, useCallback, memo } from 'react'
 import { ChatInput, ChatInputRef } from './chat-input'
 import { StarterPrompts } from './starter-prompts'
 import { useChatContext } from '@/contexts/chat-context'
-import { useFlightSearchState, useFlightSearchData } from '@/contexts/flight-search-provider'
-import { usePrevious } from '@/hooks/use-previous'
+import { useFlightSearch } from '@/contexts/flight-search-provider'
 import { ChatMessage as ChatMessageType } from '@/types/chat'
 import { ChatMessage } from './chat-message'
-import { useChatStore } from '@/stores/chat-store'
-import { addFlightResultsToChat, shouldAddFlightResults } from '@/lib/flight-chat-integration'
+import { useMessageProcessor } from '@/hooks/use-message-processor'
 
 interface ChatInterfaceProps {
   className?: string
@@ -21,12 +19,10 @@ export const ChatInterface = memo(({ className }: ChatInterfaceProps) => {
   
   // Get state from contexts
   const chat = useChatContext()
-  const { searchId, isSearching } = useFlightSearchState()
-  const { flights } = useFlightSearchData()
-  const wasSearching = usePrevious(isSearching)
+  const { isSearching, flights } = useFlightSearch()
   
-  // Get addMessage from the store directly for adding flight data
-  const { addMessage } = useChatStore()
+  // Custom hook to process messages
+  useMessageProcessor();
 
   // Auto-scroll to bottom when messages change
   const scrollToBottom = useCallback(() => {
@@ -43,20 +39,6 @@ export const ChatInterface = memo(({ className }: ChatInterfaceProps) => {
       setTimeout(() => chatInputRef.current?.focus(), 100)
     }
   }, [chat.isLoading])
-
-  // Effect to add flight results to chat history
-  useEffect(() => {
-    if (shouldAddFlightResults(wasSearching ?? false, isSearching, flights)) {
-      addFlightResultsToChat(
-        {
-          flights,
-          searchId: searchId || undefined,
-          totalFound: flights.length,
-        },
-        addMessage
-      )
-    }
-  }, [wasSearching, isSearching, flights, searchId, addMessage])
 
   const hasUserMessages = chat.messages.some(msg => msg.role === 'user')
 
@@ -96,7 +78,10 @@ export const ChatInterface = memo(({ className }: ChatInterfaceProps) => {
         {/* Show starter prompts only if no user messages */}
         {!hasUserMessages && !chat.isLoading && (
           <div className="pt-8 px-3 md:px-4">
-            <StarterPrompts onPromptClick={() => {}} />
+            <StarterPrompts onPromptClick={() => {
+              // The input is now handled by the starter prompt itself
+              // We could potentially focus the input here if needed
+            }} />
           </div>
         )}
         

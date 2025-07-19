@@ -13,11 +13,11 @@ export const AdvancedMessageContent = memo(({ content }: AdvancedMessageContentP
   const blocks = parseMessageContent(content);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 w-full">
       {blocks.map((block: ContentBlock, index: number) => {
         if (block.type === 'text' && block.content) {
           return (
-            <div key={index} className="prose prose-sm max-w-none prose-gray">
+            <div key={index} className="prose prose-sm max-w-none prose-gray w-full">
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={{

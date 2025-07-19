@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { useChatContext } from '@/contexts/chat-context'
-import { useFlightSearchData, useFlightSearchState } from '@/contexts/flight-search-provider'
+import { useFlightSearch } from '@/contexts/flight-search-provider'
 
 interface ChatInputProps {
   placeholder?: string
@@ -19,9 +19,9 @@ export interface ChatInputRef {
 
 export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
   ({ placeholder = "Message GoFlyTo...", className }, ref) => {
+    const [input, setInput] = useState('')
     const chat = useChatContext()
-    const { flights, pricingTokens } = useFlightSearchData()
-  const { searchId, isSearching } = useFlightSearchState()
+    const { flights, searchId, isSearching } = useFlightSearch()
     const textareaRef = useRef<HTMLTextAreaElement>(null)
 
     // Auto-resize textarea
@@ -38,37 +38,37 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
     }, [])
 
     const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
-      chat.setInput(e.target.value)
+      setInput(e.target.value)
       adjustTextareaHeight()
-    }, [chat, adjustTextareaHeight])
+    }, [adjustTextareaHeight])
 
     const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault()
-        if (!chat.isLoading && chat.input.trim()) {
+        if (!chat.isLoading && input.trim()) {
           const flightData = {
             searchId: searchId,
             flights: flights,
-            pricingTokens: pricingTokens,
           }
-          chat.handleSubmit(e, flightData)
+          chat.handleSubmit(e, input.trim(), flightData)
+          setInput('')
           chat.trackEvent('send_message', 'chat', 'chat_message', 1)
         }
       }
-    }, [chat, searchId, flights, pricingTokens])
+    }, [chat, input, searchId, flights])
 
     const handleSubmit = useCallback((e: React.FormEvent) => {
       e.preventDefault()
-      if (!chat.isLoading && chat.input.trim()) {
+      if (!chat.isLoading && input.trim()) {
         const flightData = {
           searchId: searchId,
           flights: flights,
-          pricingTokens: pricingTokens,
         }
-        chat.handleSubmit(e, flightData)
+        chat.handleSubmit(e, input.trim(), flightData)
+        setInput('')
         chat.trackEvent('send_message', 'chat', 'chat_message', 1)
       }
-    }, [chat, searchId, flights, pricingTokens])
+    }, [chat, input, searchId, flights])
 
     // Expose focus method
     useImperativeHandle(ref, () => ({
@@ -82,7 +82,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
             <div className="flex items-end gap-2 p-3 bg-gray-50 rounded-2xl border border-gray-200 focus-within:border-gray-300 transition-colors">
               <Textarea
                 ref={textareaRef}
-                value={chat.input}
+                value={input}
                 onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
                 placeholder={placeholder}
@@ -107,7 +107,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
                   <Button
                     type="submit"
                     size="icon"
-                    disabled={!chat.input.trim()}
+                    disabled={!input.trim()}
                     className="h-8 w-8 rounded-lg disabled:opacity-30"
                   >
                     <Send className="h-4 w-4" />

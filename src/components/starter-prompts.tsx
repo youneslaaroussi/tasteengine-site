@@ -7,12 +7,12 @@ import { useChatContext } from '@/contexts/chat-context'
 import { useAnalytics } from '@/hooks/use-analytics'
 
 type Props = {
-  onPromptClick: (prompt: string) => void
+  onPromptClick: () => void
 }
 
 export const StarterPrompts = ({ onPromptClick }: Props) => {
   const { trackEvent } = useAnalytics()
-  const { setInput, handleSubmit } = useChatContext()
+  const { handleSubmit } = useChatContext()
 
   const prompts = [
     {
@@ -34,10 +34,9 @@ export const StarterPrompts = ({ onPromptClick }: Props) => {
   ]
 
   const handlePromptClick = (prompt: string) => {
-    setInput(prompt)
     trackEvent('starter_prompt', 'chat', prompt, 1)
-    onPromptClick(prompt)
-    handleSubmit()
+    onPromptClick()
+    handleSubmit(undefined, prompt)
   }
 
   return (

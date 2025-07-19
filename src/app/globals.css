@@ -26,6 +26,13 @@
   --radius: 0.5rem;
 }
 
+/* Price font styling */
+.font-price {
+  font-family: var(--font-mono-price);
+  font-feature-settings: "tnum" 1, "lnum" 1;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
 .dark {
   --background: hsl(222.2 84% 4.9%);
   --foreground: hsl(210 40% 98%);

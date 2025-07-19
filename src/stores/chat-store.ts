@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
 import { persist } from 'zustand/middleware'
 import { ChatMessage } from '@/types/chat'
+import { nanoid } from 'nanoid'
 
 export interface ChatSession {
   id: string
@@ -17,9 +18,6 @@ interface ChatState {
   
   // All saved sessions
   sessions: ChatSession[]
-  
-  // Current input
-  input: string
   
   // Loading states
   isLoading: boolean
@@ -38,15 +36,12 @@ interface ChatActions {
   updateSessionTitle: (sessionId: string, title: string) => void
   
   // Message management
-  addMessage: (message: Omit<ChatMessage, 'id' | 'createdAt'>) => void
+  addMessage: (message: Omit<ChatMessage, 'id' | 'createdAt'>) => string
   updateMessage: (
     messageId: string, 
     updater: string | ((prevContent: string) => string)
   ) => void
   clearMessages: () => void
-  
-  // Input management
-  setInput: (input: string) => void
   
   // Loading states
   setLoading: (loading: boolean) => void
@@ -81,7 +76,6 @@ export const useChatStore = create<ChatStore>()(
       // Initial state
       currentSession: null,
       sessions: [],
-      input: '',
       isLoading: false,
       isSaving: false,
       sidebarOpen: false,
@@ -133,52 +127,45 @@ export const useChatStore = create<ChatStore>()(
       
       // Message management
       addMessage: (message) => {
-        set((state) => {
-          if (!state.currentSession) {
-            // Create a new session if none exists
-            state.currentSession = createInitialSession()
-            state.sessions.unshift(state.currentSession)
-          }
-          
-          const newMessage: ChatMessage = {
-            ...message,
-            id: crypto.randomUUID(),
-            createdAt: new Date(),
-          }
-          
-          state.currentSession.messages.push(newMessage)
-          state.currentSession.updatedAt = new Date()
-          
-          // Auto-generate title from first user message
-          if (state.currentSession.messages.length === 1 && message.role === 'user') {
-            state.currentSession.title = get().generateSessionTitle([newMessage])
-          }
-          
-          // Update session in sessions array
-          const sessionIndex = state.sessions.findIndex(s => s.id === state.currentSession!.id)
-          if (sessionIndex !== -1) {
-            state.sessions[sessionIndex] = state.currentSession
+        const newMessage: ChatMessage = {
+          ...message,
+          id: nanoid(),
+          createdAt: new Date(),
+        }
+        set(state => {
+          if (state.currentSession) {
+            state.currentSession.messages.push(newMessage)
+            // Assuming saveSessionToStorage is defined elsewhere or will be added
+            // saveSessionToStorage(state.currentSession) 
+          } else {
+            const newSession = createInitialSession()
+            newSession.messages.push(newMessage)
+            state.sessions.unshift(newSession) // Changed from state.sessions[newSession.id] = newSession to state.sessions.unshift(newSession)
+            state.currentSession = newSession
+            // Assuming saveSessionToStorage is defined elsewhere or will be added
+            // saveSessionToStorage(newSession)
           }
         })
+        return newMessage.id
       },
       
-      updateMessage: (messageId, updater) => {
-        set((state) => {
-          if (!state.currentSession) return
-          
-          const message = state.currentSession.messages.find(m => m.id === messageId)
-          if (message) {
-            if (typeof updater === 'function') {
-              message.content = updater(message.content)
-            } else {
-              message.content = updater
-            }
-            state.currentSession.updatedAt = new Date()
-            
-            // Update session in sessions array
-            const sessionIndex = state.sessions.findIndex(s => s.id === state.currentSession!.id)
-            if (sessionIndex !== -1) {
-              state.sessions[sessionIndex] = state.currentSession
+      updateMessage: (messageId, updateFn) => {
+        set(state => {
+          if (state.currentSession) {
+            const message = state.currentSession.messages.find(m => m.id === messageId)
+            if (message) {
+              if (typeof updateFn === 'function') {
+                message.content = updateFn(message.content)
+              } else {
+                message.content = updateFn
+              }
+              state.currentSession.updatedAt = new Date()
+              
+              // Update session in sessions array
+              const sessionIndex = state.sessions.findIndex(s => s.id === state.currentSession!.id)
+              if (sessionIndex !== -1) {
+                state.sessions[sessionIndex] = state.currentSession
+              }
             }
           }
         })
@@ -200,11 +187,6 @@ export const useChatStore = create<ChatStore>()(
       },
       
       // Input management
-      setInput: (input: string) => {
-        set((state) => {
-          state.input = input
-        })
-      },
       
       // Loading states
       setLoading: (loading: boolean) => {
