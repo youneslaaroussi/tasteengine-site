@@ -41,6 +41,7 @@ export function useChat({
   const messages = currentSession?.messages || []
   const assistantMsgIdRef = useRef<string | null>(null)
   const toolCallIdsRef = useRef<Record<string, string>>({})
+  const toolCallContentRef = useRef<string>('')
 
   const onUpdateRef = useRef((update: string) => {
     console.log('[FRONTEND] onUpdate called with content length:', update.length);
@@ -52,9 +53,13 @@ export function useChat({
     
     if (assistantMsgId) {
       console.log('[FRONTEND] Calling updateMessage with content length:', update.length);
+      // CRITICAL FIX: Preserve tool call content when updating with streamed content
       useChatStore.getState().updateMessage(assistantMsgId, () => {
         console.log('[FRONTEND] UpdateMessage updater function called, returning content length:', update.length);
-        return update;
+        // Combine tool calls with streamed content
+        const combinedContent = toolCallContentRef.current + update;
+        console.log('[FRONTEND] Combined content length:', combinedContent.length);
+        return combinedContent;
       });
       
       // Let's also check what's actually stored
@@ -79,6 +84,10 @@ export function useChat({
       const toolMarkdown = `\n{% tool_start '${toolCall.toolName}' '${toolId}' %}\n{% tool_description %}${
         toolCall.toolDescription || 'Processing...'
       }{% end_tool_description %}\n{% endtool %}\n`;
+      
+      // Store tool call content in ref so it persists during streaming
+      toolCallContentRef.current += toolMarkdown;
+      
       useChatStore.getState().updateMessage(assistantMsgId, content => content + toolMarkdown);
     } else if (toolCall.type === 'tool_complete') {
       if (toolCall.toolName === 'initiate_flight_search') {
@@ -95,18 +104,27 @@ export function useChat({
       const toolId = toolCallIdsRef.current[toolCall.toolName];
       if (!toolId) return;
 
-      let toolMarkdown = `{% tool_complete '${toolCall.toolName}' '${toolId}' %}\n`;
+      // Create complete tool markdown
+      let completeToolMarkdown = `{% tool_complete '${toolCall.toolName}' '${toolId}' %}\n{% tool_description %}${
+        toolCall.toolDescription || 'Processing...'
+      }{% end_tool_description %}\n`;
+      
       if (toolCall.data) {
-        toolMarkdown += JSON.stringify(toolCall.data, null, 2);
+        completeToolMarkdown += JSON.stringify(toolCall.data, null, 2) + '\n';
       }
-      toolMarkdown += '\n{% endtool %}\n';
+      completeToolMarkdown += '{% endtool %}\n';
 
-      useChatStore.getState().updateMessage(assistantMsgId, content =>
-        content.replace(
-          `{% tool_start '${toolCall.toolName}' '${toolId}' %}`,
-          `{% tool_complete '${toolCall.toolName}' '${toolId}' %}`
-        ) + toolMarkdown
-      );
+      // Update the tool call content reference by replacing the start tag with complete
+      const startPattern = `{% tool_start '${toolCall.toolName}' '${toolId}' %}\n{% tool_description %}${
+        toolCall.toolDescription || 'Processing...'
+      }{% end_tool_description %}\n{% endtool %}\n`;
+      
+      toolCallContentRef.current = toolCallContentRef.current.replace(startPattern, completeToolMarkdown);
+
+      // Update the actual message
+      useChatStore.getState().updateMessage(assistantMsgId, content => {
+        return content.replace(startPattern, completeToolMarkdown);
+      });
     }
   });
 
@@ -122,9 +140,13 @@ export function useChat({
       
       if (assistantMsgId) {
         console.log('[FRONTEND] Calling updateMessage with content length:', update.length);
+        // CRITICAL FIX: Preserve tool call content when updating with streamed content
         useChatStore.getState().updateMessage(assistantMsgId, () => {
           console.log('[FRONTEND] UpdateMessage updater function called, returning content length:', update.length);
-          return update;
+          // Combine tool calls with streamed content
+          const combinedContent = toolCallContentRef.current + update;
+          console.log('[FRONTEND] Combined content length:', combinedContent.length);
+          return combinedContent;
         });
         
         // Let's also check what's actually stored
@@ -138,7 +160,9 @@ export function useChat({
         }, 0);
       }
     };
-  }, []);
+
+
+  }, [onFlightSearchStart]);
 
   const submitMessage = useCallback(
     async (message: string, flightData?: FlightSearchData) => {
@@ -149,9 +173,10 @@ export function useChat({
         return;
       }
 
-      // Clear any previous assistant message reference
+      // Clear any previous assistant message reference and tool call content
       assistantMsgIdRef.current = null;
       toolCallIdsRef.current = {};
+      toolCallContentRef.current = '';
 
       console.log('[SUBMIT] Adding user message');
       addMessage({
@@ -190,7 +215,7 @@ export function useChat({
         const proxiedOnUpdate = Comlink.proxy(onUpdateRef.current);
         const proxiedOnToolCall = Comlink.proxy(onToolCallRef.current);
 
-        console.log('[SUBMIT] Calling worker.sendMessage');
+        console.log('[SUBMIT] Calling worker.sendMessage with flight data:', flightData);
         await worker.sendMessage(
           message,
           currentMessages,

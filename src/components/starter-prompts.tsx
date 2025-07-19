@@ -4,6 +4,7 @@ import { memo } from 'react'
 import { Button } from '@/components/ui/button'
 import { Plane, MapPin, Calendar, DollarSign } from 'lucide-react'
 import { useChatContext } from '@/contexts/chat-context'
+import { useFlightSearch } from '@/contexts/flight-search-provider'
 import { useAnalytics } from '@/hooks/use-analytics'
 
 type Props = {
@@ -13,6 +14,7 @@ type Props = {
 export const StarterPrompts = ({ onPromptClick }: Props) => {
   const { trackEvent } = useAnalytics()
   const { handleSubmit } = useChatContext()
+  const { flights, searchId } = useFlightSearch()
 
   const prompts = [
     {
@@ -36,7 +38,14 @@ export const StarterPrompts = ({ onPromptClick }: Props) => {
   const handlePromptClick = (prompt: string) => {
     trackEvent('starter_prompt', 'chat', prompt, 1)
     onPromptClick()
-    handleSubmit(undefined, prompt)
+    
+    // Include current flight data context
+    const flightData = {
+      searchId: searchId,
+      flights: flights,
+    }
+    
+    handleSubmit(undefined, prompt, flightData)
   }
 
   return (

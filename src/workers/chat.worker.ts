@@ -12,14 +12,40 @@ const chatApi = {
     onToolCall: (toolCall: any) => void
   ) {
     console.log('[WORKER] Starting sendMessage');
+    console.log('[WORKER] Flight data provided:', flightData);
+    
+    // Build conversation history including flight context
+    const conversationWithFlights = conversationHistory.map(msg => {
+      const baseMessage = {
+        role: msg.role,
+        content: msg.content,
+      };
+      
+      // Include flight context for data messages
+      if (msg.role === 'data' && msg.flights && msg.searchId) {
+        return {
+          ...baseMessage,
+          content: `${msg.content} [Flight search results: ${msg.flights.length} flights found for search ID ${msg.searchId}. Flight details: ${JSON.stringify(msg.flights.slice(0, 3))}]`,
+        };
+      }
+      
+      return baseMessage;
+    });
+
+    // Add current flight context if available
+    let contextMessage = '';
+    if (flightData && flightData.flights && flightData.flights.length > 0) {
+      contextMessage = `\n\nCurrent flight search context: ${flightData.flights.length} flights available for search ID ${flightData.searchId}. Recent flights: ${JSON.stringify(flightData.flights.slice(0, 3))}`;
+      message = message + contextMessage;
+      console.log('[WORKER] Added flight context to message');
+    }
     
     const requestBody = {
       message,
-      conversationHistory: conversationHistory.map(msg => ({
-        role: msg.role,
-        content: msg.content,
-      })),
+      conversationHistory: conversationWithFlights,
     };
+
+    console.log('[WORKER] Request body conversation history length:', conversationWithFlights.length);
 
     // Make request to external API
     const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/agent/chat/stream`, {

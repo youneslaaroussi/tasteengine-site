@@ -27,15 +27,24 @@ export function useMessageProcessor() {
   }, [isLoading]);
   
   useEffect(() => {
-    if (shouldAddFlightResults(wasSearching ?? false, isSearching, flights)) {
-      addFlightResultsToChat(
-        {
-          flights,
-          searchId: searchId || undefined,
-          totalFound: flights.length,
-        },
-        addMessage
-      );
+    // CRITICAL FIX: Only add flight results when not currently loading to avoid interfering with ongoing streams
+    if (shouldAddFlightResults(wasSearching ?? false, isSearching, flights) && !isLoading) {
+      console.log('[MESSAGE_PROCESSOR] Adding flight results to chat - flights:', flights.length, 'searchId:', searchId);
+      
+      // Use a small delay to ensure any ongoing message streams have completed
+      setTimeout(() => {
+        // Double-check we're still not loading before adding
+        if (!useChatStore.getState().isLoading) {
+          addFlightResultsToChat(
+            {
+              flights,
+              searchId: searchId || undefined,
+              totalFound: flights.length,
+            },
+            addMessage
+          );
+        }
+      }, 100);
     }
-  }, [wasSearching, isSearching, flights, searchId, addMessage]);
+  }, [wasSearching, isSearching, flights, searchId, addMessage, isLoading]);
 } 
