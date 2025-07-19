@@ -13,13 +13,30 @@ export function useNotifications() {
     if ('Notification' in window) {
       const status = await Notification.requestPermission();
       setPermission(status);
+      return status;
     }
+    return 'denied' as NotificationPermission;
   };
 
-  const showNotification = (title: string, options?: NotificationOptions) => {
-    if (permission === 'granted') {
-      new Notification(title, options);
+  const showNotification = async (title: string, options?: NotificationOptions) => {
+    if (!('Notification' in window)) {
+      return false;
     }
+
+    let currentPermission = permission;
+
+    // If permission is default, request it first
+    if (currentPermission === 'default') {
+      currentPermission = await requestPermission();
+    }
+
+    // Only show notification if permission is granted
+    if (currentPermission === 'granted') {
+      new Notification(title, options);
+      return true;
+    }
+
+    return false;
   };
 
   return { permission, requestPermission, showNotification };

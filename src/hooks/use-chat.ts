@@ -7,7 +7,6 @@ import { useChatStore } from '@/stores/chat-store'
 import { getChatWorker } from '@/workers/chat.worker.factory'
 import * as Comlink from 'comlink'
 import { useNotifications } from './use-notifications'
-import { toast } from 'sonner'
 import { nanoid } from 'nanoid'
 
 export type UseChatOptions = {
@@ -21,7 +20,7 @@ export function useChat({
 }: UseChatOptions = {}) {
   const { trackEvent } = useAnalytics()
   const abortControllerRef = useRef<AbortController | null>(null)
-  const { permission, requestPermission, showNotification } = useNotifications()
+  const { showNotification } = useNotifications()
 
   const {
     currentSession,
@@ -200,7 +199,7 @@ export function useChat({
         console.log('[SUBMIT] Worker.sendMessage completed');
 
         if (document.visibilityState === 'hidden') {
-          showNotification('New message from GoFlyTo', {
+          await showNotification('New message from GoFlyTo', {
             body: 'Your chat response is ready.',
             icon: '/android-chrome-192x192.png',
           })
@@ -209,7 +208,7 @@ export function useChat({
         console.error('[SUBMIT] Chat error:', error)
         addMessage({
           role: 'assistant',
-          content: "I'm sorry, I encountered an error. Please try again.",
+          content: "I'm sorry, I encountered an error. Please try again. Error: " + error,
         })
       } finally {
         console.log('[SUBMIT] Setting loading to false');
@@ -232,29 +231,12 @@ export function useChat({
     async (e: React.FormEvent | undefined, message: string, flightData?: FlightSearchData) => {
       e?.preventDefault()
 
-      if (permission === 'denied') {
-        const notificationShownKey = 'goflyto-notification-blocked-shown'
-        const hasShownNotification = sessionStorage.getItem(notificationShownKey)
-        
-        if (!hasShownNotification) {
-          toast.info('Notifications are blocked', {
-            description:
-              'You have previously blocked notifications for this site. To enable them, please go to your browser settings.',
-          })
-          sessionStorage.setItem(notificationShownKey, 'true')
-        }
-      } else if (permission === 'default') {
-        await requestPermission()
-      }
-
       if (!message || isLoading) return
       
       await submitMessage(message, flightData)
     },
     [
       isLoading,
-      permission,
-      requestPermission,
       submitMessage,
     ]
   )
