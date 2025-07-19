@@ -20,31 +20,28 @@ export function useMessageProcessor() {
   }, [submitMessage]);
 
   useEffect(() => {
-    // When a message stream ends, notify the queue
-    if (!isLoading) {
+    // Coordinate stream state with message queue
+    if (isLoading) {
+      agentMessageQueue.onMessageStreamStart();
+    } else {
       agentMessageQueue.onMessageStreamEnd();
     }
   }, [isLoading]);
   
   useEffect(() => {
-    // CRITICAL FIX: Only add flight results when not currently loading to avoid interfering with ongoing streams
-    if (shouldAddFlightResults(wasSearching ?? false, isSearching, flights) && !isLoading) {
+    // Add flight results when search completes
+    // The message queue will handle coordination with ongoing streams
+    if (shouldAddFlightResults(wasSearching ?? false, isSearching, flights)) {
       console.log('[MESSAGE_PROCESSOR] Adding flight results to chat - flights:', flights.length, 'searchId:', searchId);
       
-      // Use a small delay to ensure any ongoing message streams have completed
-      setTimeout(() => {
-        // Double-check we're still not loading before adding
-        if (!useChatStore.getState().isLoading) {
-          addFlightResultsToChat(
-            {
-              flights,
-              searchId: searchId || undefined,
-              totalFound: flights.length,
-            },
-            addMessage
-          );
-        }
-      }, 100);
+      addFlightResultsToChat(
+        {
+          flights,
+          searchId: searchId || undefined,
+          totalFound: flights.length,
+        },
+        addMessage
+      );
     }
-  }, [wasSearching, isSearching, flights, searchId, addMessage, isLoading]);
+  }, [wasSearching, isSearching, flights, searchId, addMessage]);
 } 
