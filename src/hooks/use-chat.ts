@@ -20,7 +20,9 @@ export function useChat({
 }: UseChatOptions = {}) {
   const { trackEvent } = useAnalytics()
   const abortControllerRef = useRef<AbortController | null>(null)
-  const { showNotification } = useNotifications()
+  const { permission, requestPermission, showNotification } = useNotifications()
+  
+  console.log('[CHAT] useChat initialized, notification permission:', permission)
 
   const {
     currentSession,
@@ -231,12 +233,29 @@ export function useChat({
     async (e: React.FormEvent | undefined, message: string, flightData?: FlightSearchData) => {
       e?.preventDefault()
 
+      console.log('[CHAT] handleSubmit called, current notification permission:', permission)
+
+      // Always request notification permission on first interaction, regardless of current state
+      const notificationRequestedKey = 'goflyto-notification-requested'
+      const hasRequestedNotification = sessionStorage.getItem(notificationRequestedKey)
+      
+      if (!hasRequestedNotification) {
+        console.log('[CHAT] First interaction - forcing notification permission request, current state:', permission)
+        const result = await requestPermission()
+        console.log('[CHAT] Permission request result:', result)
+        sessionStorage.setItem(notificationRequestedKey, 'true')
+      } else {
+        console.log('[CHAT] Notification permission already requested in this session')
+      }
+
       if (!message || isLoading) return
       
       await submitMessage(message, flightData)
     },
     [
       isLoading,
+      permission,
+      requestPermission,
       submitMessage,
     ]
   )
