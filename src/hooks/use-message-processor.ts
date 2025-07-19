@@ -20,14 +20,20 @@ export function useMessageProcessor() {
   }, [submitMessage]);
 
   useEffect(() => {
-    // When a message stream ends, notify the queue
-    if (!isLoading) {
+    // Coordinate stream state with message queue
+    if (isLoading) {
+      agentMessageQueue.onMessageStreamStart();
+    } else {
       agentMessageQueue.onMessageStreamEnd();
     }
   }, [isLoading]);
   
   useEffect(() => {
+    // Add flight results when search completes
+    // The message queue will handle coordination with ongoing streams
     if (shouldAddFlightResults(wasSearching ?? false, isSearching, flights)) {
+      console.log('[MESSAGE_PROCESSOR] Adding flight results to chat - flights:', flights.length, 'searchId:', searchId);
+      
       addFlightResultsToChat(
         {
           flights,

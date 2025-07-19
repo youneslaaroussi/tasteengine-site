@@ -12,6 +12,7 @@ class AgentMessageQueue {
   private queue: QueuedMessage[] = [];
   private isProcessing = false;
   private messageSender: MessageSender | null = null;
+  private isStreamActive = false;
 
   private static instance: AgentMessageQueue;
 
@@ -28,6 +29,14 @@ class AgentMessageQueue {
     this.messageSender = messageSender;
   }
 
+  public setStreamActive(active: boolean) {
+    this.isStreamActive = active;
+    if (!active) {
+      // When stream becomes inactive, process any queued messages
+      this.processQueue();
+    }
+  }
+
   public add(message: string): Promise<void> {
     return new Promise((resolve, reject) => {
       this.queue.push({ message, resolve, reject });
@@ -36,7 +45,8 @@ class AgentMessageQueue {
   }
 
   private async processQueue() {
-    if (this.isProcessing || this.queue.length === 0 || !this.messageSender) {
+    // Don't process if a stream is active or already processing
+    if (this.isProcessing || this.isStreamActive || this.queue.length === 0 || !this.messageSender) {
       return;
     }
 
@@ -51,13 +61,19 @@ class AgentMessageQueue {
       reject(error);
     } finally {
       this.isProcessing = false;
-      this.processQueue();
+      // Process next message if no stream is active
+      if (!this.isStreamActive) {
+        this.processQueue();
+      }
     }
   }
 
+  public onMessageStreamStart() {
+    this.setStreamActive(true);
+  }
+
   public onMessageStreamEnd() {
-    this.isProcessing = false;
-    this.processQueue();
+    this.setStreamActive(false);
   }
 }
 

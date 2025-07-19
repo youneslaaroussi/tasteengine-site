@@ -13,17 +13,39 @@ export function parseMessageContent(content: string): ContentBlock[] {
   let lastIndex = 0;
   let match;
 
-  // First pass: identify all tool calls and group them
-  while ((match = toolBlockRegex.exec(content)) !== null) {
-    const fullMatch = match[0];
-    const tag = match[1];
-    const status = match[2];
-    const toolName = match[3];
-    const id = match[4];
-    const innerContent = match[5];
+  // Store the original content for debugging
+  console.log('[PARSER] Parsing content length:', content.length, 'preview:', content.substring(0, 200));
 
-    if (match.index > lastIndex) {
-      blocks.push({ type: 'text', content: content.substring(lastIndex, match.index) });
+  // First pass: identify all tool calls and group them
+  const toolMatches: any[] = [];
+  while ((match = toolBlockRegex.exec(content)) !== null) {
+    toolMatches.push({
+      fullMatch: match[0],
+      tag: match[1],
+      status: match[2],
+      toolName: match[3],
+      id: match[4],
+      innerContent: match[5],
+      index: match.index,
+      lastIndex: toolBlockRegex.lastIndex
+    });
+  }
+
+  console.log('[PARSER] Found tool matches:', toolMatches.length);
+
+  // Reset regex for actual processing
+  toolBlockRegex.lastIndex = 0;
+  lastIndex = 0;
+
+  for (const matchData of toolMatches) {
+    const { status, toolName, id, innerContent, index } = matchData;
+
+    // Add text before this tool call
+    if (index > lastIndex) {
+      const textContent = content.substring(lastIndex, index);
+      if (textContent.trim()) {
+        blocks.push({ type: 'text', content: textContent });
+      }
     }
     
     // Find or create the tool call object
@@ -43,6 +65,7 @@ export function parseMessageContent(content: string): ContentBlock[] {
           toolCall.data = innerContent.trim();
         }
       } catch (e) {
+        console.warn('[PARSER] Failed to parse tool data:', e);
         toolCall.data = innerContent.trim();
       }
     }
@@ -53,22 +76,19 @@ export function parseMessageContent(content: string): ContentBlock[] {
       toolCall.description = descriptionMatch[1];
     }
     
-    lastIndex = toolBlockRegex.lastIndex;
+    lastIndex = matchData.lastIndex;
   }
 
-  // Add any remaining text
+  // Add any remaining text after all tool calls
   if (lastIndex < content.length) {
-    blocks.push({ type: 'text', content: content.substring(lastIndex) });
+    const remainingText = content.substring(lastIndex);
+    if (remainingText.trim()) {
+      blocks.push({ type: 'text', content: remainingText });
+    }
   }
 
-  // Clean up text blocks by removing the raw tool call syntax
-  return blocks.map(block => {
-    if (block.type === 'text') {
-      return {
-        ...block,
-        content: block.content.replace(toolBlockRegex, '').trim(),
-      };
-    }
-    return block;
-  }).filter(block => block.type !== 'text' || block.content);
+  console.log('[PARSER] Parsed blocks:', blocks.length, 'text blocks:', blocks.filter(b => b.type === 'text').length, 'tool blocks:', blocks.filter(b => b.type === 'tool').length);
+
+  // Return blocks without removing tool syntax from text (since it should already be processed)
+  return blocks.filter(block => block.type !== 'text' || block.content.trim());
 } 

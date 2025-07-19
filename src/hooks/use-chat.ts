@@ -41,32 +41,31 @@ export function useChat({
   const messages = currentSession?.messages || []
   const assistantMsgIdRef = useRef<string | null>(null)
   const toolCallIdsRef = useRef<Record<string, string>>({})
+  // Track message components separately to avoid race conditions
+  const messagePartsRef = useRef<{
+    toolCalls: string
+    streamedContent: string
+  }>({ toolCalls: '', streamedContent: '' })
+
+  const updateFullMessage = useCallback(() => {
+    const assistantMsgId = assistantMsgIdRef.current
+    if (!assistantMsgId) return
+    
+    const { toolCalls, streamedContent } = messagePartsRef.current
+    const fullContent = toolCalls + streamedContent
+    
+    useChatStore.getState().updateMessage(assistantMsgId, () => fullContent)
+  }, [])
 
   const onUpdateRef = useRef((update: string) => {
     console.log('[FRONTEND] onUpdate called with content length:', update.length);
-    console.log('[FRONTEND] Content preview:', update.substring(0, 100) + '...');
-    console.log('[FRONTEND] Content ends with:', update.substring(update.length - 50));
     
     const assistantMsgId = assistantMsgIdRef.current;
-    console.log('[FRONTEND] Assistant message ID:', assistantMsgId);
+    if (!assistantMsgId) return
     
-    if (assistantMsgId) {
-      console.log('[FRONTEND] Calling updateMessage with content length:', update.length);
-      useChatStore.getState().updateMessage(assistantMsgId, () => {
-        console.log('[FRONTEND] UpdateMessage updater function called, returning content length:', update.length);
-        return update;
-      });
-      
-      // Let's also check what's actually stored
-      setTimeout(() => {
-        const currentMessages = useChatStore.getState().currentSession?.messages || [];
-        const storedMessage = currentMessages.find(m => m.id === assistantMsgId);
-        if (storedMessage) {
-          console.log('[FRONTEND] Stored message content length:', storedMessage.content.length);
-          console.log('[FRONTEND] Stored message ends with:', storedMessage.content.substring(storedMessage.content.length - 50));
-        }
-      }, 0);
-    }
+    // Update only the streamed content part
+    messagePartsRef.current.streamedContent = update
+    updateFullMessage()
   });
 
   const onToolCallRef = useRef((toolCall: any) => {
@@ -79,7 +78,11 @@ export function useChat({
       const toolMarkdown = `\n{% tool_start '${toolCall.toolName}' '${toolId}' %}\n{% tool_description %}${
         toolCall.toolDescription || 'Processing...'
       }{% end_tool_description %}\n{% endtool %}\n`;
-      useChatStore.getState().updateMessage(assistantMsgId, content => content + toolMarkdown);
+      
+      // Add to tool calls part
+      messagePartsRef.current.toolCalls += toolMarkdown
+      updateFullMessage()
+      
     } else if (toolCall.type === 'tool_complete') {
       if (toolCall.toolName === 'initiate_flight_search') {
         const toolData = toolCall.data;
@@ -95,18 +98,23 @@ export function useChat({
       const toolId = toolCallIdsRef.current[toolCall.toolName];
       if (!toolId) return;
 
-      let toolMarkdown = `{% tool_complete '${toolCall.toolName}' '${toolId}' %}\n`;
+      // Create complete tool markdown
+      let completeToolMarkdown = `{% tool_complete '${toolCall.toolName}' '${toolId}' %}\n{% tool_description %}${
+        toolCall.toolDescription || 'Processing...'
+      }{% end_tool_description %}\n`;
+      
       if (toolCall.data) {
-        toolMarkdown += JSON.stringify(toolCall.data, null, 2);
+        completeToolMarkdown += JSON.stringify(toolCall.data, null, 2) + '\n';
       }
-      toolMarkdown += '\n{% endtool %}\n';
+      completeToolMarkdown += '{% endtool %}\n';
 
-      useChatStore.getState().updateMessage(assistantMsgId, content =>
-        content.replace(
-          `{% tool_start '${toolCall.toolName}' '${toolId}' %}`,
-          `{% tool_complete '${toolCall.toolName}' '${toolId}' %}`
-        ) + toolMarkdown
-      );
+      // Update the tool call content by replacing the start tag with complete
+      const startPattern = `{% tool_start '${toolCall.toolName}' '${toolId}' %}\n{% tool_description %}${
+        toolCall.toolDescription || 'Processing...'
+      }{% end_tool_description %}\n{% endtool %}\n`;
+      
+      messagePartsRef.current.toolCalls = messagePartsRef.current.toolCalls.replace(startPattern, completeToolMarkdown);
+      updateFullMessage()
     }
   });
 
@@ -114,31 +122,65 @@ export function useChat({
   useEffect(() => {
     onUpdateRef.current = (update: string) => {
       console.log('[FRONTEND] onUpdate called with content length:', update.length);
-      console.log('[FRONTEND] Content preview:', update.substring(0, 100) + '...');
-      console.log('[FRONTEND] Content ends with:', update.substring(update.length - 50));
       
       const assistantMsgId = assistantMsgIdRef.current;
-      console.log('[FRONTEND] Assistant message ID:', assistantMsgId);
+      if (!assistantMsgId) return
       
-      if (assistantMsgId) {
-        console.log('[FRONTEND] Calling updateMessage with content length:', update.length);
-        useChatStore.getState().updateMessage(assistantMsgId, () => {
-          console.log('[FRONTEND] UpdateMessage updater function called, returning content length:', update.length);
-          return update;
-        });
+      // Update only the streamed content part
+      messagePartsRef.current.streamedContent = update
+      updateFullMessage()
+    };
+
+    onToolCallRef.current = (toolCall: any) => {
+      const assistantMsgId = assistantMsgIdRef.current;
+      if (!assistantMsgId) return;
+
+      if (toolCall.type === 'tool_start') {
+        const toolId = nanoid();
+        toolCallIdsRef.current[toolCall.toolName] = toolId;
+        const toolMarkdown = `\n{% tool_start '${toolCall.toolName}' '${toolId}' %}\n{% tool_description %}${
+          toolCall.toolDescription || 'Processing...'
+        }{% end_tool_description %}\n{% endtool %}\n`;
         
-        // Let's also check what's actually stored
-        setTimeout(() => {
-          const currentMessages = useChatStore.getState().currentSession?.messages || [];
-          const storedMessage = currentMessages.find(m => m.id === assistantMsgId);
-          if (storedMessage) {
-            console.log('[FRONTEND] Stored message content length:', storedMessage.content.length);
-            console.log('[FRONTEND] Stored message ends with:', storedMessage.content.substring(storedMessage.content.length - 50));
+        // Add to tool calls part
+        messagePartsRef.current.toolCalls += toolMarkdown
+        updateFullMessage()
+        
+      } else if (toolCall.type === 'tool_complete') {
+        if (toolCall.toolName === 'initiate_flight_search') {
+          const toolData = toolCall.data;
+          if (toolData) {
+            const callKey = Object.keys(toolData)[0];
+            const searchId = toolData[callKey]?.searchId;
+            if (searchId && onFlightSearchStart) {
+              onFlightSearchStart(searchId);
+            }
           }
-        }, 0);
+        }
+
+        const toolId = toolCallIdsRef.current[toolCall.toolName];
+        if (!toolId) return;
+
+        // Create complete tool markdown
+        let completeToolMarkdown = `{% tool_complete '${toolCall.toolName}' '${toolId}' %}\n{% tool_description %}${
+          toolCall.toolDescription || 'Processing...'
+        }{% end_tool_description %}\n`;
+        
+        if (toolCall.data) {
+          completeToolMarkdown += JSON.stringify(toolCall.data, null, 2) + '\n';
+        }
+        completeToolMarkdown += '{% endtool %}\n';
+
+        // Update the tool call content by replacing the start tag with complete
+        const startPattern = `{% tool_start '${toolCall.toolName}' '${toolId}' %}\n{% tool_description %}${
+          toolCall.toolDescription || 'Processing...'
+        }{% end_tool_description %}\n{% endtool %}\n`;
+        
+        messagePartsRef.current.toolCalls = messagePartsRef.current.toolCalls.replace(startPattern, completeToolMarkdown);
+        updateFullMessage()
       }
     };
-  }, []);
+  }, [onFlightSearchStart, updateFullMessage]);
 
   const submitMessage = useCallback(
     async (message: string, flightData?: FlightSearchData) => {
@@ -149,9 +191,10 @@ export function useChat({
         return;
       }
 
-      // Clear any previous assistant message reference
+      // Reset message state
       assistantMsgIdRef.current = null;
       toolCallIdsRef.current = {};
+      messagePartsRef.current = { toolCalls: '', streamedContent: '' }
 
       console.log('[SUBMIT] Adding user message');
       addMessage({
@@ -167,7 +210,6 @@ export function useChat({
           console.error('[SUBMIT] Chat worker not available');
           throw new Error('Chat worker not available')
         }
-        console.log('[SUBMIT] Worker obtained:', worker);
 
         const assistantMessage: Omit<ChatMessage, 'id' | 'createdAt'> = {
           role: 'assistant',
@@ -176,7 +218,6 @@ export function useChat({
         console.log('[SUBMIT] Adding assistant message');
         const assistantMsgId = addMessage(assistantMessage)
         assistantMsgIdRef.current = assistantMsgId
-        console.log('[SUBMIT] Assistant message ID:', assistantMsgId);
 
         if (!assistantMsgId) {
           console.error('[SUBMIT] Failed to create assistant message');
@@ -190,7 +231,7 @@ export function useChat({
         const proxiedOnUpdate = Comlink.proxy(onUpdateRef.current);
         const proxiedOnToolCall = Comlink.proxy(onToolCallRef.current);
 
-        console.log('[SUBMIT] Calling worker.sendMessage');
+        console.log('[SUBMIT] Calling worker.sendMessage with flight data:', flightData);
         await worker.sendMessage(
           message,
           currentMessages,
@@ -216,9 +257,6 @@ export function useChat({
         console.log('[SUBMIT] Setting loading to false');
         setLoading(false)
         abortControllerRef.current = null
-        // Don't clear assistantMsgIdRef here - worker may still call onUpdate
-        // assistantMsgIdRef.current = null
-        // toolCallIdsRef.current = {} // Cleared at start of new message
       }
     },
     [
@@ -226,6 +264,7 @@ export function useChat({
       addMessage,
       setLoading,
       showNotification,
+      updateFullMessage,
     ]
   )
 
