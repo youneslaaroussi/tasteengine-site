@@ -26,6 +26,7 @@ const getToolDisplayName = (tool: string) => {
       'validate_booking': 'Validating booking',
       'create_booking': 'Creating booking',
       'create_affiliate_links': 'Generating booking links',
+      'save_to_memory': 'Save to memory',
     }
     return toolNames[tool] || tool.replace(/_/g, ' ')
 };
