@@ -124,7 +124,7 @@ const chatApi = {
                     const toolCall: SaveToMemoryToolCall = {
                       id: data.id || nanoid(),
                       toolName: 'save_to_memory',
-                      description: data.description || 'Save information to memory',
+                      description: data.toolDescription || data.description || 'Save information to memory',
                       parameters: data.parameters
                     };
                     
