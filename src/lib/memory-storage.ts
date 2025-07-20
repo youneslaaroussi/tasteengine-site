@@ -45,15 +45,7 @@ class MemoryStorage {
     const db = await this.ensureDB()
     const now = new Date()
 
-    // Check if memory with this key already exists
-    const existingMemory = await this.getMemoryByKey(memoryDto.key)
-    
-    const memory: Memory = existingMemory ? {
-      ...existingMemory,
-      value: memoryDto.value,
-      category: memoryDto.category,
-      updatedAt: now
-    } : {
+    const memory: Memory = {
       id: nanoid(),
       key: memoryDto.key,
       value: memoryDto.value,
@@ -72,17 +64,17 @@ class MemoryStorage {
     })
   }
 
-  async getMemoryByKey(key: string): Promise<Memory | null> {
+  async getMemoriesByKey(key: string): Promise<Memory[]> {
     const db = await this.ensureDB()
 
     return new Promise((resolve, reject) => {
       const transaction = db.transaction([STORE_NAME], 'readonly')
       const store = transaction.objectStore(STORE_NAME)
       const index = store.index('key')
-      const request = index.get(key)
+      const request = index.getAll(key)
 
       request.onerror = () => reject(request.error)
-      request.onsuccess = () => resolve(request.result || null)
+      request.onsuccess = () => resolve(request.result || [])
     })
   }
 
@@ -127,9 +119,18 @@ class MemoryStorage {
   }
 
   async deleteMemoryByKey(key: string): Promise<void> {
-    const memory = await this.getMemoryByKey(key)
-    if (memory) {
-      await this.deleteMemory(memory.id)
+    const memories = await this.getMemoriesByKey(key)
+    if (memories && memories.length > 0) {
+      const db = await this.ensureDB()
+      const transaction = db.transaction([STORE_NAME], 'readwrite')
+      const store = transaction.objectStore(STORE_NAME)
+      
+      memories.forEach(memory => store.delete(memory.id))
+
+      return new Promise((resolve, reject) => {
+        transaction.oncomplete = () => resolve()
+        transaction.onerror = (event) => reject(transaction.error)
+      });
     }
   }
 

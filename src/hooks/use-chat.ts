@@ -119,7 +119,7 @@ export function useChat({
       }{% end_tool_description %}\n`;
       
       if (toolCall.data) {
-        completeToolMarkdown += JSON.stringify(toolCall.data, null, 2) + '\n';
+        completeToolMarkdown += (typeof toolCall.data === 'string' ? toolCall.data : JSON.stringify(toolCall.data, null, 2)) + '\n';
       }
       completeToolMarkdown += '{% endtool %}\n';
 
@@ -204,7 +204,7 @@ export function useChat({
         }{% end_tool_description %}\n`;
         
         if (toolCall.data) {
-          completeToolMarkdown += JSON.stringify(toolCall.data, null, 2) + '\n';
+          completeToolMarkdown += (typeof toolCall.data === 'string' ? toolCall.data : JSON.stringify(toolCall.data, null, 2)) + '\n';
         }
         completeToolMarkdown += '{% endtool %}\n';
 
