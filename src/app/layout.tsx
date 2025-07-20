@@ -8,6 +8,7 @@ import { Suspense } from 'react'
 import { cn } from "@/lib/utils"
 import { fontSans } from "@/lib/fonts"
 import { ChatLayoutWithHistory } from "@/components/chat-layout-with-history"
+import { Eruda } from "@/components/eruda"
 
 const inter = Inter({ subsets: ["latin"] })
 const jetbrainsMono = JetBrains_Mono({ 
@@ -140,6 +141,7 @@ export default function RootLayout({
         <Suspense>
           <Analytics />
         </Suspense>
+        <Eruda />
         <Providers>
           <ChatLayoutWithHistory>
             {children}
