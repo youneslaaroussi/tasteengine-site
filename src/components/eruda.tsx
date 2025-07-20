@@ -51,7 +51,8 @@ export function Eruda({
     const persistentDebug = localStorage.getItem('eruda-enabled') === 'true'
     
     // Check environment variable configuration
-    const envConfig = process.env.ERUDA_ENABLED || 'auto'
+    // Default to 'true' if not set (assume enabled)
+    const envConfig = process.env.ERUDA_ENABLED || 'true'
     const envForceEnable = envConfig === 'true'
     const envForceDisable = envConfig === 'false'
     

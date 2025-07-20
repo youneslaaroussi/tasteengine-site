@@ -24,7 +24,7 @@ const nextConfig: NextConfig = {
   
   // Environment variables for debugging
   env: {
-    ERUDA_ENABLED: process.env.ERUDA_ENABLED || 'auto',
+    ERUDA_ENABLED: process.env.ERUDA_ENABLED || 'true',
   }
 }
 
