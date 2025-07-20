@@ -79,7 +79,7 @@ export function useChat({
       const toolKey = `${toolCall.toolName}_${toolId}`;
       toolCallIdsRef.current[toolKey] = toolId;
       const toolMarkdown = `\n{% tool_start '${toolCall.toolName}' '${toolId}' %}\n{% tool_description %}${
-        toolCall.toolDescription || 'Processing...'
+        toolCall.toolDescription || toolCall.description || 'Processing...'
       }{% end_tool_description %}\n{% endtool %}\n`;
       
       console.log('[CHAT] Adding tool start markdown for:', toolCall.toolName, 'with ID:', toolId);
@@ -115,7 +115,7 @@ export function useChat({
 
       // Create complete tool markdown
       let completeToolMarkdown = `{% tool_complete '${toolCall.toolName}' '${toolId}' %}\n{% tool_description %}${
-        toolCall.toolDescription || 'Processing...'
+        toolCall.toolDescription || toolCall.description || 'Completed'
       }{% end_tool_description %}\n`;
       
       if (toolCall.data) {
@@ -164,7 +164,7 @@ export function useChat({
         const toolKey = `${toolCall.toolName}_${toolId}`;
         toolCallIdsRef.current[toolKey] = toolId;
         const toolMarkdown = `\n{% tool_start '${toolCall.toolName}' '${toolId}' %}\n{% tool_description %}${
-          toolCall.toolDescription || 'Processing...'
+          toolCall.toolDescription || toolCall.description || 'Processing...'
         }{% end_tool_description %}\n{% endtool %}\n`;
         
         console.log('[CHAT] Adding tool start markdown for:', toolCall.toolName, 'with ID:', toolId);
@@ -200,7 +200,7 @@ export function useChat({
 
         // Create complete tool markdown
         let completeToolMarkdown = `{% tool_complete '${toolCall.toolName}' '${toolId}' %}\n{% tool_description %}${
-          toolCall.toolDescription || 'Processing...'
+          toolCall.toolDescription || toolCall.description || 'Completed'
         }{% end_tool_description %}\n`;
         
         if (toolCall.data) {
