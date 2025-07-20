@@ -1,4 +1,5 @@
 import { BookingFlightOption } from "./flights";
+import { MemoryDto } from "./memory";
 
 export interface ChatMessage {
   id: string
@@ -7,6 +8,7 @@ export interface ChatMessage {
   createdAt?: Date
   flights?: BookingFlightOption[]
   searchId?: string
+  memories?: MemoryDto[]
 }
 
 export interface ChatSession {
@@ -32,4 +34,5 @@ export interface ToolCall {
 export interface ToolCallContent extends ToolCall {
   isComplete: boolean;
   data: any;
+  result?: any;
 }

@@ -2,6 +2,8 @@
 import * as Comlink from 'comlink';
 import { nanoid } from 'nanoid';
 import { ChatMessage, FlightSearchData } from '@/types/chat';
+import { memoryService, SaveToMemoryToolCall } from '@/lib/memory-service';
+import { MemoryDto } from '@/types/memory';
 
 const chatApi = {
   async sendMessage(
@@ -13,6 +15,10 @@ const chatApi = {
   ) {
     console.log('[WORKER] Starting sendMessage');
     console.log('[WORKER] Flight data provided:', flightData);
+    
+    // Get memories to include in the request
+    const memories = await memoryService.getMemoriesForChat();
+    console.log('[WORKER] Memories loaded:', memories.length);
     
     // Build conversation history including flight context
     const conversationWithFlights = conversationHistory.map(msg => {
@@ -43,6 +49,7 @@ const chatApi = {
     const requestBody = {
       message,
       conversationHistory: conversationWithFlights,
+      memories,
     };
 
     console.log('[WORKER] Request body conversation history length:', conversationWithFlights.length);
@@ -109,6 +116,32 @@ const chatApi = {
                 onToolCall(data);
               } else if (data.type === 'tool_complete' && data.toolName) {
                 console.log('[WORKER] Tool complete:', data.toolName);
+                
+                // Handle save_to_memory tool specifically
+                if (data.toolName === 'save_to_memory' && data.parameters) {
+                  console.log('[WORKER] Handling save_to_memory tool call');
+                  try {
+                    const toolCall: SaveToMemoryToolCall = {
+                      id: data.id || nanoid(),
+                      toolName: 'save_to_memory',
+                      description: data.description || 'Save information to memory',
+                      parameters: data.parameters
+                    };
+                    
+                    const result = await memoryService.handleSaveToMemoryTool(toolCall);
+                    console.log('[WORKER] Memory save result:', result);
+                    
+                    // Add the result to the tool call data
+                    data.result = result;
+                  } catch (error) {
+                    console.error('[WORKER] Error handling save_to_memory tool:', error);
+                    data.result = {
+                      success: false,
+                      message: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
+                    };
+                  }
+                }
+                
                 onToolCall(data);
               } else if (data.type === 'complete') {
                 // Conversation completed
