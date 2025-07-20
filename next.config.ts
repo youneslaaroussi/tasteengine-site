@@ -4,9 +4,9 @@ const nextConfig: NextConfig = {
   // Turbopack is now stable
   compiler: {
     // Remove console logs in production (except Eruda-related ones)
-    removeConsole: process.env.NODE_ENV === 'production' ? {
-      exclude: ['error', 'warn']
-    } : false
+    // removeConsole: process.env.NODE_ENV === 'production' ? {
+    //   exclude: ['error', 'warn']
+    // } : false
   },
   
   // Ensure Eruda can be dynamically imported in all environments
