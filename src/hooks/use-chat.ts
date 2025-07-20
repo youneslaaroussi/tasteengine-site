@@ -72,18 +72,25 @@ export function useChat({
     const assistantMsgId = assistantMsgIdRef.current;
     if (!assistantMsgId) return;
 
+    console.log('[CHAT] Tool call received:', toolCall.type, toolCall.toolName, 'ID:', toolCall.id);
+
     if (toolCall.type === 'tool_start') {
-      const toolId = nanoid();
-      toolCallIdsRef.current[toolCall.toolName] = toolId;
+      const toolId = toolCall.id || nanoid();
+      const toolKey = `${toolCall.toolName}_${toolId}`;
+      toolCallIdsRef.current[toolKey] = toolId;
       const toolMarkdown = `\n{% tool_start '${toolCall.toolName}' '${toolId}' %}\n{% tool_description %}${
         toolCall.toolDescription || 'Processing...'
       }{% end_tool_description %}\n{% endtool %}\n`;
+      
+      console.log('[CHAT] Adding tool start markdown for:', toolCall.toolName, 'with ID:', toolId);
       
       // Add to tool calls part
       messagePartsRef.current.toolCalls += toolMarkdown
       updateFullMessage()
       
     } else if (toolCall.type === 'tool_complete') {
+      console.log('[CHAT] Tool complete for:', toolCall.toolName, 'with data:', toolCall.data);
+      
       if (toolCall.toolName === 'initiate_flight_search') {
         const toolData = toolCall.data;
         if (toolData) {
@@ -95,8 +102,16 @@ export function useChat({
         }
       }
 
-      const toolId = toolCallIdsRef.current[toolCall.toolName];
-      if (!toolId) return;
+      const toolId = toolCall.id || Object.values(toolCallIdsRef.current).find(id => 
+        messagePartsRef.current.toolCalls.includes(`{% tool_start '${toolCall.toolName}' '${id}' %}`)
+      );
+      
+      if (!toolId) {
+        console.error('[CHAT] No tool ID found for:', toolCall.toolName, 'Available IDs:', toolCallIdsRef.current);
+        return;
+      }
+
+      console.log('[CHAT] Completing tool:', toolCall.toolName, 'with ID:', toolId);
 
       // Create complete tool markdown
       let completeToolMarkdown = `{% tool_complete '${toolCall.toolName}' '${toolId}' %}\n{% tool_description %}${
@@ -108,12 +123,19 @@ export function useChat({
       }
       completeToolMarkdown += '{% endtool %}\n';
 
-      // Update the tool call content by replacing the start tag with complete
-      const startPattern = `{% tool_start '${toolCall.toolName}' '${toolId}' %}\n{% tool_description %}${
-        toolCall.toolDescription || 'Processing...'
-      }{% end_tool_description %}\n{% endtool %}\n`;
+      // Use regex to find and replace the tool call by ID instead of exact pattern matching
+      const toolStartRegex = new RegExp(`{% tool_start '${toolCall.toolName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}' '${toolId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}' %}[\\s\\S]*?{% endtool %}`, 'g');
       
-      messagePartsRef.current.toolCalls = messagePartsRef.current.toolCalls.replace(startPattern, completeToolMarkdown);
+      const oldToolCalls = messagePartsRef.current.toolCalls;
+      messagePartsRef.current.toolCalls = messagePartsRef.current.toolCalls.replace(toolStartRegex, completeToolMarkdown);
+      
+      if (oldToolCalls === messagePartsRef.current.toolCalls) {
+        console.error('[CHAT] Tool replacement failed for:', toolCall.toolName, toolId);
+        console.log('[CHAT] Looking for pattern in:', oldToolCalls);
+      } else {
+        console.log('[CHAT] Successfully replaced tool:', toolCall.toolName);
+      }
+      
       updateFullMessage()
     }
   });
@@ -135,18 +157,25 @@ export function useChat({
       const assistantMsgId = assistantMsgIdRef.current;
       if (!assistantMsgId) return;
 
+      console.log('[CHAT] Tool call received:', toolCall.type, toolCall.toolName, 'ID:', toolCall.id);
+
       if (toolCall.type === 'tool_start') {
-        const toolId = nanoid();
-        toolCallIdsRef.current[toolCall.toolName] = toolId;
+        const toolId = toolCall.id || nanoid();
+        const toolKey = `${toolCall.toolName}_${toolId}`;
+        toolCallIdsRef.current[toolKey] = toolId;
         const toolMarkdown = `\n{% tool_start '${toolCall.toolName}' '${toolId}' %}\n{% tool_description %}${
           toolCall.toolDescription || 'Processing...'
         }{% end_tool_description %}\n{% endtool %}\n`;
+        
+        console.log('[CHAT] Adding tool start markdown for:', toolCall.toolName, 'with ID:', toolId);
         
         // Add to tool calls part
         messagePartsRef.current.toolCalls += toolMarkdown
         updateFullMessage()
         
       } else if (toolCall.type === 'tool_complete') {
+        console.log('[CHAT] Tool complete for:', toolCall.toolName, 'with data:', toolCall.data);
+        
         if (toolCall.toolName === 'initiate_flight_search') {
           const toolData = toolCall.data;
           if (toolData) {
@@ -158,8 +187,16 @@ export function useChat({
           }
         }
 
-        const toolId = toolCallIdsRef.current[toolCall.toolName];
-        if (!toolId) return;
+        const toolId = toolCall.id || Object.values(toolCallIdsRef.current).find(id => 
+          messagePartsRef.current.toolCalls.includes(`{% tool_start '${toolCall.toolName}' '${id}' %}`)
+        );
+        
+        if (!toolId) {
+          console.error('[CHAT] No tool ID found for:', toolCall.toolName, 'Available IDs:', toolCallIdsRef.current);
+          return;
+        }
+
+        console.log('[CHAT] Completing tool:', toolCall.toolName, 'with ID:', toolId);
 
         // Create complete tool markdown
         let completeToolMarkdown = `{% tool_complete '${toolCall.toolName}' '${toolId}' %}\n{% tool_description %}${
@@ -171,12 +208,19 @@ export function useChat({
         }
         completeToolMarkdown += '{% endtool %}\n';
 
-        // Update the tool call content by replacing the start tag with complete
-        const startPattern = `{% tool_start '${toolCall.toolName}' '${toolId}' %}\n{% tool_description %}${
-          toolCall.toolDescription || 'Processing...'
-        }{% end_tool_description %}\n{% endtool %}\n`;
+        // Use regex to find and replace the tool call by ID instead of exact pattern matching
+        const toolStartRegex = new RegExp(`{% tool_start '${toolCall.toolName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}' '${toolId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}' %}[\\s\\S]*?{% endtool %}`, 'g');
         
-        messagePartsRef.current.toolCalls = messagePartsRef.current.toolCalls.replace(startPattern, completeToolMarkdown);
+        const oldToolCalls = messagePartsRef.current.toolCalls;
+        messagePartsRef.current.toolCalls = messagePartsRef.current.toolCalls.replace(toolStartRegex, completeToolMarkdown);
+        
+        if (oldToolCalls === messagePartsRef.current.toolCalls) {
+          console.error('[CHAT] Tool replacement failed for:', toolCall.toolName, toolId);
+          console.log('[CHAT] Looking for pattern in:', oldToolCalls);
+        } else {
+          console.log('[CHAT] Successfully replaced tool:', toolCall.toolName);
+        }
+        
         updateFullMessage()
       }
     };
