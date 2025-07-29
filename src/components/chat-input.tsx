@@ -87,7 +87,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
                 onKeyDown={handleKeyDown}
                 placeholder={placeholder}
                 rows={1}
-                className="flex-1 shadow-none outline-none resize-none border-0 bg-transparent p-0 text-base placeholder:text-gray-500 focus-visible:ring-0 focus-visible:ring-offset-0"
+                className="flex-1 border-none shadow-none outline-none resize-none bg-transparent p-0 text-base placeholder:text-gray-500 focus-visible:ring-0 focus-visible:ring-offset-0"
                 style={{ minHeight: '24px', maxHeight: '120px' }}
                 disabled={chat.isLoading}
               />

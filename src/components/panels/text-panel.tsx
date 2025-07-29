@@ -1,21 +1,20 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { useEditor, EditorContent } from '@tiptap/react'
+import StarterKit from '@tiptap/starter-kit'
 import { usePanelData } from '@/hooks/use-panel-data'
 import { useChatStore } from '@/stores/chat-store'
 import { registerPanel } from '@/lib/panel-context'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
-import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
 import { 
-  FileText, 
   Save, 
-  Clock, 
-  RefreshCw 
+  Bold, 
+  Italic, 
+  List, 
+  ListOrdered,
+  Quote
 } from 'lucide-react'
-import { format } from 'date-fns'
 
 interface TextData {
   title: string
@@ -24,29 +23,27 @@ interface TextData {
 
 const defaultTextData: TextData = {
   title: '',
-  content: ''
+  content: '<p></p>'
 }
 
 // Custom title generator for text data
 const generateTextTitle = (data: TextData): string => {
-  if (data.title.trim()) {
-    return data.title.slice(0, 50) + (data.title.length > 50 ? '...' : '')
-  }
   if (data.content.trim()) {
-    // Take first line or first 50 characters of content
-    const firstLine = data.content.split('\n')[0]
-    return firstLine.slice(0, 50) + (firstLine.length > 50 ? '...' : '')
+    // Extract text content from HTML
+    const textContent = data.content.replace(/<[^>]*>/g, '').trim()
+    if (textContent) {
+      const firstLine = textContent.split('\n')[0]
+      return firstLine.slice(0, 50) + (firstLine.length > 50 ? '...' : '')
+    }
   }
   return 'Untitled Note'
 }
 
 export function TextPanel() {
-  // Get current chat session to tie text notes to it
-  const { currentSession: chatSession, isLoading: chatLoading } = useChatStore()
+  const { currentSession: chatSession } = useChatStore()
   
   const {
     data,
-    currentSession,
     save,
     clear,
     updateTitle,
@@ -54,7 +51,7 @@ export function TextPanel() {
     storeName: 'text-panel',
     defaultData: defaultTextData,
     titleGenerator: generateTextTitle,
-    sessionKey: chatSession?.id, // This ties the text panel to the current chat session
+    sessionKey: chatSession?.id,
   })
 
   // Register this panel type so it can be accessed by the agent
@@ -69,146 +66,198 @@ export function TextPanel() {
         () => storeCache.get(effectiveStoreName),
         'Text notes associated with the current chat conversation'
       )
-      
-      console.log('[TextPanel] Registered notes panel for session:', chatSession.id)
     }
   }, [chatSession?.id])
 
-  const [localTitle, setLocalTitle] = useState(data.title)
-  const [localContent, setLocalContent] = useState(data.content)
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
 
-  // Update local state when data changes (from loading different sessions)
-  useEffect(() => {
-    setLocalTitle(data.title)
-    setLocalContent(data.content)
-    setHasUnsavedChanges(false)
-  }, [data])
+  // Initialize Tiptap editor
+  const editor = useEditor({
+    extensions: [StarterKit],
+    content: data.content || '<p></p>',
+    immediatelyRender: false,
+    onUpdate: ({ editor }) => {
+      const newContent = editor.getHTML()
+      const hasChanges = newContent !== data.content
+      setHasUnsavedChanges(hasChanges)
+    },
+  })
 
-  // Track changes to show unsaved indicator
+  // Update editor when data changes
   useEffect(() => {
-    const hasChanges = localTitle !== data.title || localContent !== data.content
-    setHasUnsavedChanges(hasChanges)
-  }, [localTitle, localContent, data])
+    if (editor && data.content !== editor.getHTML()) {
+      editor.commands.setContent(data.content || '<p></p>')
+    }
+    setHasUnsavedChanges(false)
+  }, [data, editor])
 
   // Auto-save after 2 seconds of inactivity
   useEffect(() => {
-    if (!hasUnsavedChanges) return
+    if (!hasUnsavedChanges || !editor) return
 
     const timer = setTimeout(() => {
       handleSave()
     }, 2000)
 
     return () => clearTimeout(timer)
-  }, [localTitle, localContent, hasUnsavedChanges])
+  }, [hasUnsavedChanges, editor])
 
   const handleSave = useCallback(() => {
+    if (!editor) return
+    
     const newData: TextData = {
-      title: localTitle,
-      content: localContent,
+      title: generateTextTitle({ title: '', content: editor.getHTML() }),
+      content: editor.getHTML(),
     }
     save(newData)
-    
-    // Auto-generate title if it's empty
-    if (!localTitle.trim() && localContent.trim()) {
-      updateTitle()
-    }
-  }, [localTitle, localContent, save, updateTitle])
+    updateTitle()
+  }, [editor, save, updateTitle])
 
   const handleClear = useCallback(() => {
-    setLocalTitle('')
-    setLocalContent('')
+    if (editor) {
+      editor.commands.setContent('<p></p>')
+    }
     clear(defaultTextData)
-  }, [clear])
+  }, [clear, editor])
 
-  // Show message if no chat session is active
-  if (!chatSession) {
+  if (!chatSession || !editor) {
     return (
-      <Card className="h-full flex flex-col">
-        <CardHeader className="flex-shrink-0">
-          <CardTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5" />
-            <span>Chat Notes</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="flex-1 flex items-center justify-center">
-          <div className="text-center text-gray-500">
-            <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-            <p>Start a chat to take notes</p>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="h-full flex items-center justify-center text-gray-500">
+        {!chatSession ? 'Start a chat to take notes' : 'Loading...'}
+      </div>
     )
   }
 
   return (
-    <Card className="h-full flex flex-col">
-      <CardHeader className="flex-shrink-0">
-        <CardTitle className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <FileText className="h-5 w-5" />
-            <span>Chat Notes</span>
-            {chatLoading && (
-              <Badge variant="outline" className="text-xs">
-                <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
-                Agent responding...
-              </Badge>
-            )}
-            {!chatLoading && hasUnsavedChanges && (
-              <Badge variant="secondary" className="text-xs">
-                <Clock className="h-3 w-3 mr-1" />
-                Unsaved
-              </Badge>
-            )}
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={handleSave} disabled={!hasUnsavedChanges || chatLoading}>
-              <Save className="h-4 w-4" />
-            </Button>
-            <Button variant="outline" size="sm" onClick={handleClear} disabled={chatLoading}>
-              <RefreshCw className="h-4 w-4" />
-            </Button>
-          </div>
-        </CardTitle>
-      </CardHeader>
-
-      <CardContent className="flex-1 flex flex-col gap-4 min-h-0">
-        <div className="flex-shrink-0 text-xs text-gray-500 bg-gray-50 p-2 rounded">
-          Notes for: <span className="font-medium">{chatSession.title}</span>
+    <div className="h-full flex flex-col">
+      {/* Combined Toolbar */}
+      <div className="flex-shrink-0 flex justify-between items-center gap-2 p-2 border-b bg-gray-50">
+        <div className="flex gap-1">
+          <Button
+            variant={editor.isActive('bold') ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => editor.chain().focus().toggleBold().run()}
+            className="h-8 w-8 p-0"
+            title="Bold (Ctrl+B)"
+          >
+            <Bold className="h-4 w-4" />
+          </Button>
+          <Button
+            variant={editor.isActive('italic') ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => editor.chain().focus().toggleItalic().run()}
+            className="h-8 w-8 p-0"
+            title="Italic (Ctrl+I)"
+          >
+            <Italic className="h-4 w-4" />
+          </Button>
+          <div className="w-px bg-gray-200 mx-1" />
+          <Button
+            variant={editor.isActive('bulletList') ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => editor.chain().focus().toggleBulletList().run()}
+            className="h-8 w-8 p-0"
+            title="Bullet List"
+          >
+            <List className="h-4 w-4" />
+          </Button>
+          <Button
+            variant={editor.isActive('orderedList') ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => editor.chain().focus().toggleOrderedList().run()}
+            className="h-8 w-8 p-0"
+            title="Numbered List"
+          >
+            <ListOrdered className="h-4 w-4" />
+          </Button>
+          <Button
+            variant={editor.isActive('blockquote') ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => editor.chain().focus().toggleBlockquote().run()}
+            className="h-8 w-8 p-0"
+            title="Quote"
+          >
+            <Quote className="h-4 w-4" />
+          </Button>
         </div>
 
-        {/* Title Input */}
-        <div className="flex-shrink-0">
-          <Input
-            placeholder="Note title..."
-            value={localTitle}
-            onChange={(e) => setLocalTitle(e.target.value)}
-            className="font-medium"
-            disabled={chatLoading}
-          />
-        </div>
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={handleSave} 
+          disabled={!hasUnsavedChanges}
+          className="h-8 w-8 p-0"
+          title="Save"
+        >
+          <Save className="h-4 w-4" />
+        </Button>
+      </div>
 
-        {/* Content Input */}
-        <div className="flex-1 min-h-0">
-          <Textarea
-            placeholder="Take notes about this chat..."
-            value={localContent}
-            onChange={(e) => setLocalContent(e.target.value)}
-            className="h-full resize-none"
-            disabled={chatLoading}
-          />
-        </div>
+      {/* TipTap Editor */}
+      <div className="flex-1 min-h-0">
+        <EditorContent
+          editor={editor}
+          className="h-full prose prose-sm max-w-none p-4 focus-within:outline-none"
+          style={{
+            height: '100%',
+            overflowY: 'auto'
+          }}
+        />
+      </div>
 
-        {/* Status Bar */}
-        <div className="flex-shrink-0 text-xs text-gray-500 flex justify-between">
-          <span>{localContent.length} characters</span>
-          {currentSession && (
-            <span>
-              Last saved: {format(new Date(currentSession.updatedAt), 'MMM d, HH:mm')}
-            </span>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+      <style jsx global>{`
+        .ProseMirror {
+          outline: none;
+          height: 100%;
+          min-height: 100%;
+        }
+        
+        .ProseMirror p {
+          margin: 0.5rem 0;
+        }
+        
+        .ProseMirror p:first-child {
+          margin-top: 0;
+        }
+        
+        .ProseMirror p:last-child {
+          margin-bottom: 0;
+        }
+        
+        .ProseMirror ul, .ProseMirror ol {
+          margin: 0.5rem 0;
+          padding-left: 1.5rem;
+        }
+        
+        .ProseMirror blockquote {
+          border-left: 3px solid #ddd;
+          padding-left: 1rem;
+          margin: 1rem 0;
+          font-style: italic;
+          color: #666;
+        }
+        
+        .ProseMirror strong {
+          font-weight: bold;
+        }
+        
+        .ProseMirror em {
+          font-style: italic;
+        }
+        
+        .ProseMirror p.is-editor-empty:first-child::before {
+          content: "Take notes...";
+          float: left;
+          color: #adb5bd;
+          pointer-events: none;
+          height: 0;
+        }
+        
+        /* Enable TipTap's built-in bubble menu and formatting */
+        .ProseMirror-focused {
+          outline: none;
+        }
+      `}</style>
+    </div>
   )
 } 
