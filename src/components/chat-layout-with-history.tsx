@@ -1,22 +1,28 @@
 'use client'
 
-import { MessageSquare } from 'lucide-react'
+import { MessageSquare, Settings } from 'lucide-react'
 import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar'
+import { Button } from '@/components/ui/button'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { ChatHistorySidebar } from '@/components/chat-history'
 import { useChatStore } from '@/stores/chat-store'
 import { TextPanel } from '@/components/panels/text-panel'
+import { MapPanel } from '@/components/panels/map-panel'
+import { MiroPanel } from '@/components/panels/miro-panel'
+import { SettingsModal } from '@/components/settings-modal'
 import { Mosaic, MosaicWindow } from 'react-mosaic-component'
 import { useState } from 'react'
 
 // Import the required CSS for react-mosaic
 import 'react-mosaic-component/react-mosaic-component.css'
 
-type ViewId = 'chat' | 'notes'
+type ViewId = 'chat' | 'notes' | 'map' | 'miro'
 
 const TITLE_MAP: Record<ViewId, string> = {
   chat: 'Chat',
   notes: 'Notes',
+  map: 'Map',
+  miro: 'Miro',
 }
 
 interface ChatLayoutWithHistoryProps {
@@ -26,12 +32,22 @@ interface ChatLayoutWithHistoryProps {
 export function ChatLayoutWithHistory({ children }: ChatLayoutWithHistoryProps) {
   const isMobile = useIsMobile()
   
-  // Initial mosaic layout - chat takes 70% width, notes takes 30%
+  // Initial mosaic layout - chat takes 50% width, panels split the remaining 50%
   const [mosaicValue, setMosaicValue] = useState<any>({
     direction: 'row' as const,
     first: 'chat' as ViewId,
-    second: 'notes' as ViewId,
-    splitPercentage: 70,
+    second: {
+      direction: 'column' as const,
+      first: 'notes' as ViewId,
+      second: {
+        direction: 'column' as const,
+        first: 'map' as ViewId,
+        second: 'miro' as ViewId,
+        splitPercentage: 50,
+      },
+      splitPercentage: 50,
+    },
+    splitPercentage: 50,
   })
 
   const handleMosaicChange = (value: any) => {
@@ -61,11 +77,41 @@ export function ChatLayoutWithHistory({ children }: ChatLayoutWithHistoryProps) 
         <MosaicWindow<ViewId>
           path={path}
           title={TITLE_MAP[id]}
-          createNode={() => 'chat'}
+          createNode={() => 'map'}
           className="bg-white"
         >
           <div className="h-full">
             <TextPanel />
+          </div>
+        </MosaicWindow>
+      )
+    }
+
+    if (id === 'map') {
+      return (
+        <MosaicWindow<ViewId>
+          path={path}
+          title={TITLE_MAP[id]}
+          createNode={() => 'miro'}
+          className="bg-white"
+        >
+          <div className="h-full">
+            <MapPanel />
+          </div>
+        </MosaicWindow>
+      )
+    }
+
+    if (id === 'miro') {
+      return (
+        <MosaicWindow<ViewId>
+          path={path}
+          title={TITLE_MAP[id]}
+          createNode={() => 'chat'}
+          className="bg-white"
+        >
+          <div className="h-full">
+            <MiroPanel />
           </div>
         </MosaicWindow>
       )
@@ -92,6 +138,12 @@ export function ChatLayoutWithHistory({ children }: ChatLayoutWithHistoryProps) 
                   <MessageSquare className="h-5 w-5 text-primary" />
                   <span className="font-semibold">GoFlyTo</span>
                 </div>
+                
+                <SettingsModal>
+                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                    <Settings className="h-4 w-4" />
+                  </Button>
+                </SettingsModal>
               </div>
               
               {/* Main content */}
@@ -103,9 +155,22 @@ export function ChatLayoutWithHistory({ children }: ChatLayoutWithHistoryProps) 
                   </div>
                 </div>
                 
-                {/* Text Panel */}
-                <div className="w-80 flex-shrink-0">
-                  <TextPanel />
+                {/* Side panels */}
+                <div className="w-80 flex-shrink-0 flex flex-col gap-4">
+                  {/* Text Panel */}
+                  <div className="flex-1 min-h-0">
+                    <TextPanel />
+                  </div>
+                  
+                  {/* Map Panel */}
+                  <div className="flex-1 min-h-0">
+                    <MapPanel />
+                  </div>
+                  
+                  {/* Miro Panel */}
+                  <div className="flex-1 min-h-0">
+                    <MiroPanel />
+                  </div>
                 </div>
               </div>
             </div>
@@ -131,6 +196,12 @@ export function ChatLayoutWithHistory({ children }: ChatLayoutWithHistoryProps) 
                 <MessageSquare className="h-5 w-5 text-primary" />
                 <span className="font-semibold">GoFlyTo</span>
               </div>
+              
+              <SettingsModal>
+                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                  <Settings className="h-4 w-4" />
+                </Button>
+              </SettingsModal>
             </div>
             
             {/* Mosaic Layout */}

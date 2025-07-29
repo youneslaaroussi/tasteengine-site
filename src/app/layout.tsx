@@ -10,6 +10,7 @@ import { fontSans } from "@/lib/fonts"
 import { ChatLayoutWithHistory } from "@/components/chat-layout-with-history"
 import { Eruda } from "@/components/eruda"
 
+
 const inter = Inter({ subsets: ["latin"] })
 const jetbrainsMono = JetBrains_Mono({ 
   subsets: ["latin"],
@@ -138,6 +139,43 @@ export default function RootLayout({
           jetbrainsMono.variable,
         )}
       >
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                const suppressPatterns = [
+                  /Each child in a list should have a unique "key" prop/,
+                  /Accessing element\\.ref was removed in React 19/,
+                  /ref is now a regular prop/,
+                  /It will be removed from the JSX Element type/,
+                  /Check the render method of/,
+                  /was passed a child from ChatLayoutWithHistory/
+                ];
+                
+                const shouldSuppress = (message) => {
+                  return suppressPatterns.some(pattern => pattern.test(message));
+                };
+                
+                const originalWarn = console.warn;
+                const originalError = console.error;
+                
+                console.warn = function(...args) {
+                  const message = args.join(' ');
+                  if (!shouldSuppress(message)) {
+                    originalWarn.apply(console, args);
+                  }
+                };
+                
+                console.error = function(...args) {
+                  const message = args.join(' ');
+                  if (!shouldSuppress(message)) {
+                    originalError.apply(console, args);
+                  }
+                };
+              })();
+            `
+          }}
+                 />
         <Suspense>
           <Analytics />
         </Suspense>
