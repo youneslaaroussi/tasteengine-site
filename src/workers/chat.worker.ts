@@ -4,6 +4,7 @@ import { nanoid } from 'nanoid';
 import { ChatMessage, FlightSearchData } from '@/types/chat';
 import { memoryService, SaveToMemoryToolCall } from '@/lib/memory-service';
 import { MemoryDto } from '@/types/memory';
+import { updatePanelData } from '@/lib/panel-context';
 
 const chatApi = {
   async sendMessage(
@@ -11,7 +12,9 @@ const chatApi = {
     conversationHistory: ChatMessage[],
     flightData: FlightSearchData | undefined,
     onUpdate: (update: string) => void,
-    onToolCall: (toolCall: any) => void
+    onToolCall: (toolCall: any) => void,
+    chatSessionId?: string,
+    panelContext?: string
   ) {
     console.log('[WORKER] Starting sendMessage');
     console.log('[WORKER] Flight data provided:', flightData);
@@ -19,6 +22,7 @@ const chatApi = {
     // Get memories to include in the request
     const memories = await memoryService.getMemoriesForChat();
     console.log('[WORKER] Memories loaded:', memories.length);
+    console.log('[WORKER] Panel context received:', panelContext ? panelContext.length : 0, 'characters');
     
     // Build conversation history including flight context
     const conversationWithFlights = conversationHistory.map(msg => {
@@ -42,8 +46,16 @@ const chatApi = {
     let contextMessage = '';
     if (flightData && flightData.flights && flightData.flights.length > 0) {
       contextMessage = `\n\nCurrent flight search context: ${flightData.flights.length} flights available for search ID ${flightData.searchId}. Recent flights: ${JSON.stringify(flightData.flights.slice(0, 3))}`;
+    }
+    
+    // Add panel context to the message
+    if (panelContext && panelContext.length > 0) {
+      contextMessage += panelContext;
+    }
+    
+    if (contextMessage) {
       message = message + contextMessage;
-      console.log('[WORKER] Added flight context to message');
+      console.log('[WORKER] Added context to message (flight + panels)');
     }
     
     const requestBody = {
@@ -165,6 +177,43 @@ const chatApi = {
                   }
                 }
                 
+                // Handle update_panel tool specifically
+                if (data.toolName === 'update_panel' && (data.parameters || data.data)) {
+                  console.log('[WORKER] Handling update_panel tool call');
+                  try {
+                    let toolParams = data.parameters;
+
+                    if (!toolParams && data.data) {
+                      const callKey = Object.keys(data.data)[0];
+                      const callData = callKey ? data.data[callKey] : null;
+                      toolParams = callData;
+                    }
+
+                    if (!toolParams || !toolParams.panelType) {
+                      throw new Error('Could not find parameters for update_panel or missing panelType');
+                    }
+
+                    const result = updatePanelData(
+                      toolParams.panelType,
+                      toolParams.data,
+                      chatSessionId
+                    );
+                    console.log('[WORKER] Panel update result:', result);
+                    
+                    // The frontend expects the result in the `data` property
+                    data.data = result;
+                    delete (data as any).result;
+                    delete (data as any).parameters;
+
+                  } catch (error) {
+                    console.error('[WORKER] Error handling update_panel tool:', error);
+                    data.data = {
+                      success: false,
+                      message: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
+                    };
+                  }
+                }
+                
                 onToolCall(data);
               } else if (data.type === 'complete') {
                 // Conversation completed
@@ -222,6 +271,31 @@ const chatApi = {
                 delete (data as any).parameters;
               } catch (error) {
                 console.error('[WORKER] Error handling save_to_memory tool (final):', error);
+                data.data = { success: false, message: `Error: ${error instanceof Error ? error.message : 'Unknown error'}` };
+              }
+            }
+            
+            if (data.toolName === 'update_panel' && (data.parameters || data.data)) {
+              try {
+                let toolParams = data.parameters;
+                if (!toolParams && data.data) {
+                  const callKey = Object.keys(data.data)[0];
+                  const callData = callKey ? data.data[callKey] : null;
+                  toolParams = callData;
+                }
+                if (!toolParams || !toolParams.panelType) {
+                  throw new Error('Could not find parameters for update_panel or missing panelType');
+                }
+                const result = updatePanelData(
+                  toolParams.panelType,
+                  toolParams.data,
+                  chatSessionId
+                );
+                data.data = result;
+                delete (data as any).result;
+                delete (data as any).parameters;
+              } catch (error) {
+                console.error('[WORKER] Error handling update_panel tool (final):', error);
                 data.data = { success: false, message: `Error: ${error instanceof Error ? error.message : 'Unknown error'}` };
               }
             }

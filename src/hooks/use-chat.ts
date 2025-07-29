@@ -8,6 +8,7 @@ import { getChatWorker } from '@/workers/chat.worker.factory'
 import * as Comlink from 'comlink'
 import { useNotifications } from './use-notifications'
 import { nanoid } from 'nanoid'
+import { formatPanelContextForAgent } from '@/lib/panel-context'
 
 export type UseChatOptions = {
   initialMessages?: ChatMessage[]
@@ -271,6 +272,11 @@ export function useChat({
         const currentMessages = useChatStore.getState().currentSession?.messages ?? []
         console.log('[SUBMIT] Current messages count:', currentMessages.length);
 
+        // Get panel context in main thread (worker can't access panel registry)
+        const currentSessionId = useChatStore.getState().currentSession?.id
+        const panelContext = formatPanelContextForAgent(currentSessionId)
+        console.log('[SUBMIT] Panel context length:', panelContext.length);
+
         // Create fresh Comlink proxies for this call
         const proxiedOnUpdate = Comlink.proxy(onUpdateRef.current);
         const proxiedOnToolCall = Comlink.proxy(onToolCallRef.current);
@@ -281,7 +287,9 @@ export function useChat({
           currentMessages,
           flightData,
           proxiedOnUpdate,
-          proxiedOnToolCall
+          proxiedOnToolCall,
+          currentSessionId,
+          panelContext
         )
         console.log('[SUBMIT] Worker.sendMessage completed');
 

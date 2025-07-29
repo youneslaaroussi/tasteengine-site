@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { ChatHistorySidebar } from '@/components/chat-history'
 import { useChatStore } from '@/stores/chat-store'
+import { TextPanel } from '@/components/panels/text-panel'
 
 interface ChatLayoutWithHistoryProps {
   children: React.ReactNode
@@ -33,9 +34,17 @@ export function ChatLayoutWithHistory({ children }: ChatLayoutWithHistoryProps) 
             </div>
             
             {/* Main content */}
-            <div className="flex-1 flex justify-center min-h-0">
-              <div className="w-full max-w-4xl h-full">
-                {children}
+            <div className="flex-1 flex gap-4 p-4 min-h-0">
+              {/* Chat Interface */}
+              <div className="flex-1 min-w-0">
+                <div className="w-full max-w-4xl mx-auto h-full">
+                  {children}
+                </div>
+              </div>
+              
+              {/* Text Panel */}
+              <div className="w-80 flex-shrink-0">
+                <TextPanel />
               </div>
             </div>
           </div>
