@@ -84,6 +84,20 @@ export const ChatMessage = memo(({ message, isStreaming }: ChatMessageProps) => 
               </div>
               
               <div className="text-gray-800">
+                {/* Show images for user messages */}
+                {isUser && message.images && message.images.length > 0 && (
+                  <div className="mb-3 flex flex-wrap gap-2">
+                    {message.images.map((image, index) => (
+                      <img
+                        key={index}
+                        src={image}
+                        alt={`User attachment ${index + 1}`}
+                        className="max-w-xs max-h-48 object-cover rounded-lg border"
+                      />
+                    ))}
+                  </div>
+                )}
+                
                 {message.content ? (
                   isUser ? (
                     <div className="prose prose-sm max-w-none prose-gray">
@@ -100,6 +114,9 @@ export const ChatMessage = memo(({ message, isStreaming }: ChatMessageProps) => 
                     <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }} />
                     <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }} />
                   </div>
+                ) : isUser && message.images && message.images.length > 0 ? (
+                  // Show empty state for user messages with only images
+                  null
                 ) : null}
               </div>
             </div>

@@ -46,7 +46,7 @@ Memory Details:
 ${memories.map(m => `- ${m.key}: ${m.value} (${m.category || 'no category'})`).join('\n')}
       `)
     } catch (error) {
-      setTestResult(`❌ Test failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      setTestResult(`Test failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
       console.error('Memory test error:', error)
     } finally {
       setIsLoading(false)
@@ -59,7 +59,7 @@ ${memories.map(m => `- ${m.key}: ${m.value} (${m.category || 'no category'})`).j
       const result = await memoryService.clearAllMemories()
       setTestResult(`Clear memories: ${result.success ? 'SUCCESS' : 'FAILED'}\nMessage: ${result.message}`)
     } catch (error) {
-      setTestResult(`❌ Clear failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      setTestResult(`Clear failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
     } finally {
       setIsLoading(false)
     }

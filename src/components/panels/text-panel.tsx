@@ -61,7 +61,7 @@ export function TextPanel() {
       const effectiveStoreName = `text-panel-${chatSession.id}`
       
       registerPanel(
-        'notes',
+        'text-panel',
         'text-panel',
         () => storeCache.get(effectiveStoreName),
         'Text notes associated with the current chat conversation'

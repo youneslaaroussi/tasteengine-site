@@ -13,6 +13,7 @@ import {
   Edit2,
   MoreHorizontal
 } from 'lucide-react'
+import { motion, AnimatePresence } from 'motion/react'
 
 import {
   Sidebar,
@@ -213,7 +214,18 @@ export function ChatHistorySidebar() {
                               />
                             </div>
                           ) : (
-                            <span className="truncate flex-1">{session.title}</span>
+                            <AnimatePresence mode="wait">
+                              <motion.span 
+                                key={session.title}
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                transition={{ duration: 0.3 }}
+                                className="truncate flex-1"
+                              >
+                                {session.title}
+                              </motion.span>
+                            </AnimatePresence>
                           )}
                         </SidebarMenuSubButton>
                         <DropdownMenu>

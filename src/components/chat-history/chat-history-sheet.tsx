@@ -42,6 +42,7 @@ import {
   getStorageStats 
 } from '@/lib/chat-storage'
 import { toast } from 'sonner'
+import { motion, AnimatePresence } from 'motion/react'
 
 interface ChatHistorySheetProps {
   children: React.ReactNode
@@ -224,7 +225,18 @@ export function ChatHistorySheet({ children }: ChatHistorySheetProps) {
                               onClick={(e) => e.stopPropagation()}
                             />
                           ) : (
-                            <span className="truncate flex-1 text-sm">{session.title}</span>
+                            <AnimatePresence mode="wait">
+                              <motion.span 
+                                key={session.title}
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                transition={{ duration: 0.3 }}
+                                className="truncate flex-1 text-sm"
+                              >
+                                {session.title}
+                              </motion.span>
+                            </AnimatePresence>
                           )}
                           
                           <DropdownMenu>

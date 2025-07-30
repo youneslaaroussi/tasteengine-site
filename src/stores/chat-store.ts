@@ -58,6 +58,7 @@ interface ChatActions {
   
   // Utilities
   generateSessionTitle: (messages: ChatMessage[]) => string
+  generateTitleFromAPI: (sessionId: string, text: string) => Promise<void>
 }
 
 type ChatStore = ChatState & ChatActions
@@ -69,6 +70,29 @@ const createInitialSession = (): ChatSession => ({
   createdAt: new Date(),
   updatedAt: new Date(),
 })
+
+// API call function for title generation
+const generateTitleFromAPI = async (text: string): Promise<string> => {
+  const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
+  if (!baseUrl) {
+    throw new Error('API endpoint not configured');
+  }
+
+  const response = await fetch(`${baseUrl}/generate-title`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ text }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to generate title: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  return data.title;
+};
 
 export const useChatStore = create<ChatStore>()(
   persist(
@@ -127,23 +151,36 @@ export const useChatStore = create<ChatStore>()(
       
       // Message management
       addMessage: (message) => {
+        console.log('[STORE] Adding message:', { role: message.role, content: message.content.substring(0, 30), hasImages: !!message.images, imageCount: message.images?.length || 0 });
         const newMessage: ChatMessage = {
           ...message,
           id: nanoid(),
           createdAt: new Date(),
         }
+        console.log('[STORE] New message created:', { role: newMessage.role, content: newMessage.content.substring(0, 30), hasImages: !!newMessage.images, imageCount: newMessage.images?.length || 0 });
         set(state => {
           if (state.currentSession) {
             state.currentSession.messages.push(newMessage)
-            // Assuming saveSessionToStorage is defined elsewhere or will be added
-            // saveSessionToStorage(state.currentSession) 
+            
+            // Generate title if this is the first user message and session has default title
+            if (
+              message.role === 'user' && 
+              state.currentSession.title === 'New Chat' &&
+              state.currentSession.messages.filter(m => m.role === 'user').length === 1
+            ) {
+              // Trigger async title generation
+              get().generateTitleFromAPI(state.currentSession.id, message.content);
+            }
           } else {
             const newSession = createInitialSession()
             newSession.messages.push(newMessage)
-            state.sessions.unshift(newSession) // Changed from state.sessions[newSession.id] = newSession to state.sessions.unshift(newSession)
+            state.sessions.unshift(newSession)
             state.currentSession = newSession
-            // Assuming saveSessionToStorage is defined elsewhere or will be added
-            // saveSessionToStorage(newSession)
+            
+            // Generate title if this is a user message
+            if (message.role === 'user') {
+              get().generateTitleFromAPI(newSession.id, message.content);
+            }
           }
         })
         return newMessage.id
@@ -283,6 +320,18 @@ export const useChatStore = create<ChatStore>()(
         // Take first 50 characters and add ellipsis if needed
         const title = firstUserMessage.content.slice(0, 50)
         return title.length < firstUserMessage.content.length ? `${title}...` : title
+      },
+
+      generateTitleFromAPI: async (sessionId: string, text: string) => {
+        try {
+          const title = await generateTitleFromAPI(text);
+          get().updateSessionTitle(sessionId, title);
+        } catch (error) {
+          console.error('Failed to generate title:', error);
+          // Fall back to the old method if API call fails
+          const title = get().generateSessionTitle([{ role: 'user', content: text } as ChatMessage]);
+          get().updateSessionTitle(sessionId, title);
+        }
       },
     })),
     {

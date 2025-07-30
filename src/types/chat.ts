@@ -9,6 +9,7 @@ export interface ChatMessage {
   flights?: BookingFlightOption[]
   searchId?: string
   memories?: MemoryDto[]
+  images?: string[] // Base64 encoded images
 }
 
 export interface ChatSession {

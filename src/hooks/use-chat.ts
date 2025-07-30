@@ -7,8 +7,10 @@ import { useChatStore } from '@/stores/chat-store'
 import { getChatWorker } from '@/workers/chat.worker.factory'
 import * as Comlink from 'comlink'
 import { useNotifications } from './use-notifications'
+import { updatePanelData } from '@/lib/panel-context'
 import { nanoid } from 'nanoid'
 import { formatPanelContextForAgent } from '@/lib/panel-context'
+import { ZCOOL_KuaiLe } from 'next/font/google'
 
 export type UseChatOptions = {
   initialMessages?: ChatMessage[]
@@ -42,18 +44,16 @@ export function useChat({
   const messages = currentSession?.messages || []
   const assistantMsgIdRef = useRef<string | null>(null)
   const toolCallIdsRef = useRef<Record<string, string>>({})
-  // Track message components separately to avoid race conditions
-  const messagePartsRef = useRef<{
-    toolCalls: string
-    streamedContent: string
-  }>({ toolCalls: '', streamedContent: '' })
+  // Track single message content that integrates text and tool calls inline
+  const messageContentRef = useRef<string>('')
+  // Track the last text content we've seen to calculate deltas
+  const lastTextContentRef = useRef<string>('')
 
   const updateFullMessage = useCallback(() => {
     const assistantMsgId = assistantMsgIdRef.current
     if (!assistantMsgId) return
     
-    const { toolCalls, streamedContent } = messagePartsRef.current
-    const fullContent = toolCalls + streamedContent
+    const fullContent = messageContentRef.current
     
     useChatStore.getState().updateMessage(assistantMsgId, () => fullContent)
   }, [])
@@ -64,8 +64,13 @@ export function useChat({
     const assistantMsgId = assistantMsgIdRef.current;
     if (!assistantMsgId) return
     
-    // Update only the streamed content part
-    messagePartsRef.current.streamedContent = update
+    // Calculate only the NEW text content (delta from last update)
+    const lastText = lastTextContentRef.current;
+    const newTextPortion = update.startsWith(lastText) ? update.slice(lastText.length) : update;
+    lastTextContentRef.current = update;
+    
+    // Append only the new text portion to current content
+    messageContentRef.current += newTextPortion;
     updateFullMessage()
   });
 
@@ -85,12 +90,33 @@ export function useChat({
       
       console.log('[CHAT] Adding tool start markdown for:', toolCall.toolName, 'with ID:', toolId);
       
-      // Add to tool calls part
-      messagePartsRef.current.toolCalls += toolMarkdown
+      // Insert tool call at the current end of content
+      messageContentRef.current += toolMarkdown
       updateFullMessage()
       
-    } else if (toolCall.type === 'tool_complete') {
+        } else if (toolCall.type === 'tool_complete') {
+      console.log('[CHAT] INITIAL ENTERED TOOL_COMPLETE BRANCH');
       console.log('[CHAT] Tool complete for:', toolCall.toolName, 'with data:', toolCall.data);
+      
+      // Handle update_panel FIRST before toolId check
+      console.log('[CHAT] Checking toolCall.toolName:', toolCall.toolName, 'equals update_panel?', toolCall.toolName === 'update_panel');
+      if (toolCall.toolName === 'update_panel') {
+        console.log('[CHAT] Handling update_panel in main thread:', toolCall.data);
+        try {
+          const result = toolCall.data;
+          
+          if (result && result.panelType) {
+            // Extract panel data (everything except metadata)
+            const { panelType, success, message, action, timestamp, ...panelData } = result;
+            
+            console.log('[CHAT] Calling updatePanelData with:', { panelType, panelData });
+            const updateResult = updatePanelData(panelType, panelData, useChatStore.getState().currentSession?.id);
+            console.log('[CHAT] Panel update result:', updateResult);
+          }
+        } catch (error) {
+          console.error('[CHAT] Error handling update_panel:', error);
+        }
+      }
       
       if (toolCall.toolName === 'initiate_flight_search') {
         const toolData = toolCall.data;
@@ -104,7 +130,7 @@ export function useChat({
       }
 
       const toolId = toolCall.id || Object.values(toolCallIdsRef.current).find(id => 
-        messagePartsRef.current.toolCalls.includes(`{% tool_start '${toolCall.toolName}' '${id}' %}`)
+        messageContentRef.current.includes(`{% tool_start '${toolCall.toolName}' '${id}' %}`)
       );
       
       if (!toolId) {
@@ -127,12 +153,12 @@ export function useChat({
       // Use regex to find and replace the tool call by ID instead of exact pattern matching
       const toolStartRegex = new RegExp(`{% tool_start '${toolCall.toolName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}' '${toolId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}' %}[\\s\\S]*?{% endtool %}`, 'g');
       
-      const oldToolCalls = messagePartsRef.current.toolCalls;
-      messagePartsRef.current.toolCalls = messagePartsRef.current.toolCalls.replace(toolStartRegex, completeToolMarkdown);
+      const oldContent = messageContentRef.current;
+      messageContentRef.current = messageContentRef.current.replace(toolStartRegex, completeToolMarkdown);
       
-      if (oldToolCalls === messagePartsRef.current.toolCalls) {
+      if (oldContent === messageContentRef.current) {
         console.error('[CHAT] Tool replacement failed for:', toolCall.toolName, toolId);
-        console.log('[CHAT] Looking for pattern in:', oldToolCalls);
+        console.log('[CHAT] Looking for pattern in content');
       } else {
         console.log('[CHAT] Successfully replaced tool:', toolCall.toolName);
       }
@@ -149,18 +175,29 @@ export function useChat({
       const assistantMsgId = assistantMsgIdRef.current;
       if (!assistantMsgId) return
       
-      // Update only the streamed content part
-      messagePartsRef.current.streamedContent = update
+      // Calculate only the NEW text content (delta from last update)
+      const lastText = lastTextContentRef.current;
+      const newTextPortion = update.startsWith(lastText) ? update.slice(lastText.length) : update;
+      lastTextContentRef.current = update;
+      
+      // Append only the new text portion to current content
+      messageContentRef.current += newTextPortion;
       updateFullMessage()
     };
 
     onToolCallRef.current = (toolCall: any) => {
       const assistantMsgId = assistantMsgIdRef.current;
-      if (!assistantMsgId) return;
+      if (!assistantMsgId) {
+        console.log('[CHAT] NO ASSISTANT MSG ID, RETURNING');
+        return;
+      }
 
       console.log('[CHAT] Tool call received:', toolCall.type, toolCall.toolName, 'ID:', toolCall.id);
+      console.log('[CHAT] FULL TOOL CALL DEBUG:', toolCall);
+      console.log('[CHAT] About to check tool_start condition');
 
       if (toolCall.type === 'tool_start') {
+        console.log('[CHAT] ENTERED TOOL_START BRANCH');
         const toolId = toolCall.id || nanoid();
         const toolKey = `${toolCall.toolName}_${toolId}`;
         toolCallIdsRef.current[toolKey] = toolId;
@@ -170,8 +207,8 @@ export function useChat({
         
         console.log('[CHAT] Adding tool start markdown for:', toolCall.toolName, 'with ID:', toolId);
         
-        // Add to tool calls part
-        messagePartsRef.current.toolCalls += toolMarkdown
+        // Insert tool call at the current end of content
+        messageContentRef.current += toolMarkdown
         updateFullMessage()
         
       } else if (toolCall.type === 'tool_complete') {
@@ -189,7 +226,7 @@ export function useChat({
         }
 
         const toolId = toolCall.id || Object.values(toolCallIdsRef.current).find(id => 
-          messagePartsRef.current.toolCalls.includes(`{% tool_start '${toolCall.toolName}' '${id}' %}`)
+          messageContentRef.current.includes(`{% tool_start '${toolCall.toolName}' '${id}' %}`)
         );
         
         if (!toolId) {
@@ -212,12 +249,12 @@ export function useChat({
         // Use regex to find and replace the tool call by ID instead of exact pattern matching
         const toolStartRegex = new RegExp(`{% tool_start '${toolCall.toolName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}' '${toolId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}' %}[\\s\\S]*?{% endtool %}`, 'g');
         
-        const oldToolCalls = messagePartsRef.current.toolCalls;
-        messagePartsRef.current.toolCalls = messagePartsRef.current.toolCalls.replace(toolStartRegex, completeToolMarkdown);
+        const oldContent = messageContentRef.current;
+        messageContentRef.current = messageContentRef.current.replace(toolStartRegex, completeToolMarkdown);
         
-        if (oldToolCalls === messagePartsRef.current.toolCalls) {
+        if (oldContent === messageContentRef.current) {
           console.error('[CHAT] Tool replacement failed for:', toolCall.toolName, toolId);
-          console.log('[CHAT] Looking for pattern in:', oldToolCalls);
+          console.log('[CHAT] Looking for pattern in content');
         } else {
           console.log('[CHAT] Successfully replaced tool:', toolCall.toolName);
         }
@@ -228,7 +265,7 @@ export function useChat({
   }, [onFlightSearchStart, updateFullMessage]);
 
   const submitMessage = useCallback(
-    async (message: string, flightData?: FlightSearchData) => {
+    async (message: string, flightData?: FlightSearchData, images?: string[]) => {
       console.log('[SUBMIT] submitMessage called with:', message);
       
       if (isLoading) {
@@ -236,16 +273,24 @@ export function useChat({
         return;
       }
 
+      // Mark that we have an active request
+      abortControllerRef.current = new AbortController();
+
       // Reset message state
       assistantMsgIdRef.current = null;
       toolCallIdsRef.current = {};
-      messagePartsRef.current = { toolCalls: '', streamedContent: '' }
+      messageContentRef.current = '';
+      lastTextContentRef.current = '';
 
       console.log('[SUBMIT] Adding user message');
-      addMessage({
-        role: 'user',
+      console.log('[SUBMIT] Images being added to message:', images?.length || 0);
+      const messageObj = {
+        role: 'user' as const,
         content: message,
-      })
+        images: images,
+      };
+      console.log('[SUBMIT] Complete message object:', { ...messageObj, images: messageObj.images?.length || 0 });
+      addMessage(messageObj)
       setLoading(true)
 
       try {
@@ -271,6 +316,7 @@ export function useChat({
         
         const currentMessages = useChatStore.getState().currentSession?.messages ?? []
         console.log('[SUBMIT] Current messages count:', currentMessages.length);
+        console.log('[SUBMIT] Messages with images:', currentMessages.filter(m => m.images && m.images.length > 0).map(m => ({ role: m.role, content: m.content.substring(0, 50), imageCount: m.images?.length })));
 
         // Get panel context in main thread (worker can't access panel registry)
         const currentSessionId = useChatStore.getState().currentSession?.id
@@ -280,6 +326,22 @@ export function useChat({
         // Create fresh Comlink proxies for this call
         const proxiedOnUpdate = Comlink.proxy(onUpdateRef.current);
         const proxiedOnToolCall = Comlink.proxy(onToolCallRef.current);
+        const proxiedOnPanelUpdate = Comlink.proxy((panelType: string, panelData: any) => {
+          console.log('[CHAT] onPanelUpdate called with:', { panelType, panelData });
+          try {
+            // Convert markdown to HTML for text panels
+            if (panelType === 'text-panel' && panelData.content) {
+              const { marked } = require('marked');
+              console.log('[CHAT] Converting markdown to HTML for text panel');
+              panelData.content = marked(panelData.content);
+            }
+            
+            const updateResult = updatePanelData(panelType, panelData, currentSessionId);
+            console.log('[CHAT] Panel update result:', updateResult);
+          } catch (error) {
+            console.error('[CHAT] Error in onPanelUpdate:', error);
+          }
+        });
 
         console.log('[SUBMIT] Calling worker.sendMessage with flight data:', flightData);
         await worker.sendMessage(
@@ -288,8 +350,10 @@ export function useChat({
           flightData,
           proxiedOnUpdate,
           proxiedOnToolCall,
+          proxiedOnPanelUpdate,
           currentSessionId,
-          panelContext
+          panelContext,
+          images // Pass images to worker
         )
         console.log('[SUBMIT] Worker.sendMessage completed');
 
@@ -301,10 +365,13 @@ export function useChat({
         }
       } catch (error) {
         console.error('[SUBMIT] Chat error:', error)
-        addMessage({
-          role: 'assistant',
-          content: "I'm sorry, I encountered an error. Please try again. Error: " + error,
-        })
+        // Only show error if it's not an abort
+        if ((error as any)?.name !== 'AbortError') {
+          addMessage({
+            role: 'assistant',
+            content: "I'm sorry, I encountered an error. Please try again. Error: " + error,
+          })
+        }
       } finally {
         console.log('[SUBMIT] Setting loading to false');
         setLoading(false)
@@ -321,7 +388,7 @@ export function useChat({
   )
 
   const handleSubmit = useCallback(
-    async (e: React.FormEvent | undefined, message: string, flightData?: FlightSearchData) => {
+    async (e: React.FormEvent | undefined, message: string, flightData?: FlightSearchData, images?: string[]) => {
       e?.preventDefault()
 
       console.log('[CHAT] handleSubmit called, current notification permission:', permission)
@@ -339,9 +406,9 @@ export function useChat({
         console.log('[CHAT] Notification permission already requested in this session')
       }
 
-      if (!message || isLoading) return
+      if ((!message || !message.trim()) && (!images || images.length === 0) || isLoading) return
       
-      await submitMessage(message, flightData)
+      await submitMessage(message, flightData, images)
     },
     [
       isLoading,
@@ -354,6 +421,11 @@ export function useChat({
   const stop = useCallback(() => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort()
+    }
+    // Also cancel the worker request
+    const worker = getChatWorker()
+    if (worker) {
+      worker.cancel()
     }
   }, [])
 

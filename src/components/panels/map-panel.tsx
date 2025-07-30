@@ -101,7 +101,7 @@ export function MapPanel() {
       const effectiveStoreName = `map-panel-${chatSession.id}`
       
       registerPanel(
-        'map',
+        'map-panel',
         'map-panel',
         () => storeCache.get(effectiveStoreName),
         'Interactive map with pins and location data for the current chat conversation'

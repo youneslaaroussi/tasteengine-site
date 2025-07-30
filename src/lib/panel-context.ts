@@ -8,7 +8,9 @@ const panelRegistry = new Map<string, {
 }>()
 
 export function registerPanel(panelType: string, storeName: string, getStore: () => any, description: string) {
+  console.log('[PANEL_REGISTRY] Registering panel:', panelType, 'with store:', storeName);
   panelRegistry.set(panelType, { storeName, getStore, description })
+  console.log('[PANEL_REGISTRY] Registry now has:', Array.from(panelRegistry.keys()));
 }
 
 export function getAllPanelData(chatSessionId?: string) {
@@ -100,6 +102,10 @@ export function formatPanelContextForAgent(chatSessionId?: string): string {
 
 // Function to update panel data (called by the tool handler)
 export function updatePanelData(panelType: string, newData: any, chatSessionId?: string): { success: boolean; message: string } {
+  console.log('[UPDATE_PANEL_DATA] Called with:', { panelType, newData, chatSessionId });
+  console.log('[UPDATE_PANEL_DATA] Registry size:', panelRegistry.size);
+  console.log('[UPDATE_PANEL_DATA] Registry keys:', Array.from(panelRegistry.keys()));
+  
   const panelInfo = panelRegistry.get(panelType)
   
   if (!panelInfo) {
