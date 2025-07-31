@@ -15,13 +15,12 @@ import {
   Zap,
   LucideIcon
 } from 'lucide-react'
-import { FlowNodeType } from '../flow-view'
 
 export interface ToolConfig {
   id: string
   name: string
   category: 'memory' | 'search' | 'qloo' | 'shopify' | 'generation' | 'panel' | 'system'
-  nodeType: FlowNodeType
+  nodeType: string
   icon: LucideIcon
   color: string
   description: string

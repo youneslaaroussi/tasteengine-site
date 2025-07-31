@@ -1,7 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
-import { usePanelData } from '@/hooks/use-panel-data'
+import { useState, useEffect } from 'react'
 import { useChatStore } from '@/stores/chat-store'
 import { registerPanel } from '@/lib/panel-context'
 import { Button } from '@/components/ui/button'
@@ -26,6 +25,7 @@ import {
   Star,
   ArrowUpDown
 } from 'lucide-react'
+import ReactJson from 'react-json-view'
 
 // Qloo Entity from backend
 interface QlooEntity {
@@ -140,11 +140,6 @@ interface QlooData {
   lastUpdated?: number
 }
 
-const defaultQlooData: QlooData = {
-  title: 'Qloo Insights',
-  results: []
-}
-
 const generateQlooTitle = (data: QlooData): string => {
   if (data.results.length === 0) return 'Qloo Insights'
   
@@ -188,59 +183,156 @@ const formatToolName = (toolName: string): string => {
   return toolName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
 }
 
+// Add this after the existing interfaces and before the component
+
+// Function to parse tool calls from message content (similar to flow-view.tsx)
+const parseToolCallsFromContent = (content: string) => {
+  const toolCalls: Array<{
+    toolName: string;
+    toolId: string;
+    content: string;
+    fullMatch: string;
+  }> = []
+
+  // Pattern to match tool calls: {% tool_complete 'toolName' 'toolId' %}...{% endtool %}
+  const toolPattern = /{%\s*tool_complete\s+'([^']+)'\s+'([^']+)'\s*%}([\s\S]*?){%\s*endtool\s*%}/g
+  
+  let match
+  while ((match = toolPattern.exec(content)) !== null) {
+    toolCalls.push({
+      toolName: match[1],
+      toolId: match[2],
+      content: match[3],
+      fullMatch: match[0]
+    })
+  }
+
+  return toolCalls
+}
+
+// Function to extract JSON data from tool content
+const extractToolData = (toolContent: string): any => {
+  try {
+    // Look for JSON data after the tool_description end marker
+    const dataMatch = toolContent.match(/{%\s*tool_description\s*%}.*?{%\s*end_tool_description\s*%}\s*([\s\S]*)/);
+    if (dataMatch && dataMatch[1]) {
+      const jsonString = dataMatch[1].trim()
+      return JSON.parse(jsonString)
+    }
+  } catch (e) {
+    console.warn('Failed to parse tool data:', e)
+  }
+  return null
+}
+
+// Function to check if a tool is Qloo-related
+const isQlooTool = (toolName: string): boolean => {
+  const qlooTools = [
+    'search_entities',
+    'get_insights', 
+    'get_trending',
+    'analyze_entities',
+    'search_shopify_products', // Sometimes uses Qloo data
+    'compare_entities',
+    'get_audiences',
+    'search_tags',
+    'geocode_location',
+    'explain_insights'
+  ]
+  return qlooTools.some(tool => toolName.includes(tool))
+}
+
+// Function to convert parsed tool data to QlooToolResult format
+const convertToQlooResult = (toolCall: { toolName: string; toolId: string; content: string }, timestamp: number): QlooToolResult => {
+  const data = extractToolData(toolCall.content)
+  
+  const result: QlooToolResult = {
+    toolName: toolCall.toolName,
+    timestamp,
+    success: data?.success !== false,
+    duration: data?.duration ? (data.duration * 1000) : undefined, // Convert to milliseconds if present
+  }
+
+  // Map data fields based on tool type and data structure
+  if (data) {
+    // Direct field mapping
+    if (data.entities) result.entities = data.entities
+    if (data.tags) result.tags = data.tags
+    if (data.audiences) result.audiences = data.audiences
+    if (data.results) result.results = data.results
+    if (data.analysis) result.analysis = data.analysis
+    if (data.entity) result.entity = data.entity
+    if (data.trendingData) result.trendingData = data.trendingData
+    if (data.summary) result.summary = data.summary
+    if (data.comparison) result.comparison = data.comparison
+    if (data.matchedQuery) result.matchedQuery = data.matchedQuery
+    if (data.confidence) result.confidence = data.confidence
+    if (data.locality) result.locality = data.locality
+    if (data.overallExplanation) result.overallExplanation = data.overallExplanation
+    if (data.topFactors) result.topFactors = data.topFactors
+    
+    // Store the full data as fallback
+    result.data = data
+  }
+
+  return result
+}
+
+// Function to parse all Qloo tools from chat session
+const parseQlooToolsFromSession = (chatSession: any): QlooToolResult[] => {
+  if (!chatSession?.messages) return []
+  
+  const qlooResults: QlooToolResult[] = []
+  
+  chatSession.messages.forEach((message: any, messageIndex: number) => {
+    if (message.role === 'assistant' && message.content) {
+      const toolCalls = parseToolCallsFromContent(message.content)
+      
+      toolCalls.forEach((toolCall) => {
+        if (isQlooTool(toolCall.toolName)) {
+          const result = convertToQlooResult(toolCall, message.timestamp || Date.now() - (messageIndex * 1000))
+          qlooResults.push(result)
+        }
+      })
+    }
+  })
+  
+  return qlooResults.sort((a, b) => a.timestamp - b.timestamp) // Sort by timestamp
+}
+
 export function QlooPanel() {
   const { currentSession: chatSession } = useChatStore()
   const [activeTab, setActiveTab] = useState<string>('all')
+  const [parsedResults, setParsedResults] = useState<QlooToolResult[]>([])
 
-  const {
-    data,
-    save,
-    clear,
-    updateTitle,
-  } = usePanelData<QlooData>({
-    storeName: 'qloo-panel',
-    defaultData: defaultQlooData,
-    titleGenerator: generateQlooTitle,
-    sessionKey: chatSession?.id,
-  })
+  // Parse tools from current chat session
+  useEffect(() => {
+    if (chatSession) {
+      const results = parseQlooToolsFromSession(chatSession)
+      setParsedResults(results)
+    } else {
+      setParsedResults([])
+    }
+  }, [chatSession?.messages, chatSession?.id])
+
+  // Create data object from parsed results for compatibility with existing UI
+  const data: QlooData = {
+    title: generateQlooTitle({ title: 'Qloo Insights', results: parsedResults }),
+    results: parsedResults,
+    lastUpdated: parsedResults.length > 0 ? Math.max(...parsedResults.map(r => r.timestamp)) : undefined
+  }
 
   // Register this panel type so it can be accessed by the agent
   useEffect(() => {
     if (chatSession?.id) {
-      const { storeCache } = require('@/hooks/use-panel-data')
-      const effectiveStoreName = `qloo-panel-${chatSession.id}`
-      
       registerPanel(
         'qloo-panel',
         'qloo-panel',
-        () => storeCache.get(effectiveStoreName),
+        () => data,
         'Qloo insights and entity data for the current chat conversation'
       )
     }
-  }, [chatSession?.id])
-
-  // Function to add new Qloo result
-  const addQlooResult = useCallback((result: QlooToolResult) => {
-    const newData = {
-      ...data,
-      results: [...data.results, result],
-      lastUpdated: Date.now()
-    }
-    save(newData)
-    updateTitle()
-  }, [data, save, updateTitle])
-
-  // Expose the addQlooResult function globally so it can be called from tool handlers
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      (window as any).addQlooResult = addQlooResult
-    }
-  }, [addQlooResult])
-
-  const handleClear = useCallback(() => {
-    save(defaultQlooData)
-    updateTitle()
-  }, [save, updateTitle])
+  }, [chatSession?.id, data])
 
   // Get unique tool types for tabs
   const toolTypes = ['all', ...Array.from(new Set(data.results.map((r: QlooToolResult) => {
@@ -565,9 +657,21 @@ export function QlooPanel() {
          !result.locality ? (
           <div>
             <h4 className="text-sm font-medium mb-2">Result Data</h4>
-            <pre className="text-xs bg-gray-100 p-2 rounded overflow-auto max-h-32">
-              {JSON.stringify(result.data, null, 2)}
-            </pre>
+            <div className="bg-gray-50 p-3 rounded-lg max-h-64 overflow-auto">
+              <ReactJson 
+                src={result.data}
+                theme="rjv-default"
+                displayDataTypes={false}
+                displayObjectSize={false}
+                enableClipboard={true}
+                collapsed={2}
+                name={false}
+                style={{
+                  fontSize: '12px',
+                  fontFamily: 'ui-monospace, SFMono-Regular, monospace'
+                }}
+              />
+            </div>
           </div>
         ) : null}
       </CardContent>
@@ -589,8 +693,8 @@ export function QlooPanel() {
     <div className="h-full flex flex-col bg-white">
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b bg-gray-50">
-        <div className="flex items-center gap-2">
-          <Target className="w-5 h-5" />
+        <div className="flex items-center gap-3">
+          <img src="/qloo.png" alt="Qloo" className="w-8 h-8 object-contain" />
           <h2 className="font-semibold text-lg">Qloo Insights</h2>
           {data.results.length > 0 && (
             <Badge variant="secondary">{data.results.length}</Badge>
@@ -600,11 +704,11 @@ export function QlooPanel() {
           <Button
             variant="outline"
             size="sm"
-            onClick={handleClear}
-            disabled={data.results.length === 0}
+            onClick={() => setParsedResults(parseQlooToolsFromSession(chatSession))}
+            disabled={!chatSession || data.results.length === 0}
           >
             <RefreshCw className="w-4 h-4 mr-1" />
-            Clear
+            Refresh
           </Button>
         </div>
       </div>
@@ -629,8 +733,8 @@ export function QlooPanel() {
       )}
 
       {/* Content */}
-      <ScrollArea className="flex-1">
-        <div className="p-4">
+      <ScrollArea className="flex-1 h-0">
+        <div className="p-4 space-y-4">
           {filteredResults.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               <Eye className="w-12 h-12 mx-auto mb-4 text-gray-300" />
@@ -640,7 +744,7 @@ export function QlooPanel() {
               </p>
             </div>
           ) : (
-            <div>
+            <div className="space-y-4">
               {filteredResults.slice().reverse().map((result: QlooToolResult, index: number) => 
                 renderToolResult(result, index)
               )}

@@ -229,7 +229,10 @@ export function AdvancedStoreSelector({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="font-medium text-gray-900">Your Shopify Stores</h3>
+        <div className="flex items-center gap-3">
+          <img src="/shopify.png" alt="Shopify" className="w-8 h-8 object-contain" />
+          <h3 className="font-medium text-gray-900">Your Shopify Stores</h3>
+        </div>
         {showAddStore && (
           <Button onClick={handleAddStore} size="sm" variant="outline">
             <Plus className="h-4 w-4 mr-1" />

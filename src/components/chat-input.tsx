@@ -18,7 +18,7 @@ export interface ChatInputRef {
 }
 
 export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
-  ({ placeholder = "Message GoFlyTo...", className }, ref) => {
+  ({ placeholder = "Message TasteEngine...", className }, ref) => {
     const [input, setInput] = useState('')
     const [images, setImages] = useState<string[]>([])
     const chat = useChatContext()
@@ -190,8 +190,8 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
             </div>
           </form>
           
-          <p className="text-xs text-gray-500 text-center mt-2 px-4">
-            GoFlyTo can make mistakes. Check important flight details.
+          <p className="text-xs text-muted-foreground text-center px-4 py-2 border-t">
+            TasteEngine can make mistakes. Verify important strategic insights.
           </p>
         </div>
       </div>

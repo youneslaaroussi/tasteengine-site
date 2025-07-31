@@ -83,6 +83,9 @@ interface ChatActions {
   // Utilities
   generateSessionTitle: (messages: ChatMessage[]) => string
   generateTitleFromAPI: (sessionId: string, text: string) => Promise<void>
+  
+  // Default chat loading
+  loadDefaultChat: () => Promise<void>
 }
 
 type ChatStore = ChatState & ChatActions
@@ -388,6 +391,39 @@ export const useChatStore = create<ChatStore>()(
           // Fall back to the old method if API call fails
           const title = get().generateSessionTitle([{ role: 'user', content: text } as ChatMessage]);
           get().updateSessionTitle(sessionId, title);
+        }
+      },
+      
+      loadDefaultChat: async () => {
+        try {
+          const response = await fetch('/default-chat.json');
+          if (!response.ok) {
+            console.warn('Default chat file not found, skipping default chat load');
+            return;
+          }
+          
+          const defaultChatData = await response.json();
+          
+          // Convert the JSON data to a proper ChatSession with Date objects
+          const defaultSession: ChatSession = {
+            ...defaultChatData,
+            createdAt: new Date(defaultChatData.createdAt),
+            updatedAt: new Date(defaultChatData.updatedAt),
+            messages: defaultChatData.messages.map((msg: any) => ({
+              ...msg,
+              createdAt: msg.createdAt ? new Date(msg.createdAt) : new Date(),
+            }))
+          };
+          
+          set((state) => {
+            // Only load default chat if no sessions exist
+            if (state.sessions.length === 0) {
+              state.sessions.push(defaultSession);
+              state.currentSession = defaultSession;
+            }
+          });
+        } catch (error) {
+          console.error('Failed to load default chat:', error);
         }
       },
     })),

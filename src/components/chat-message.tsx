@@ -42,7 +42,7 @@ export const ChatMessage = memo(({ message, isStreaming }: ChatMessageProps) => 
               </div>
             </div>
             <div className="flex-1">
-              <div className="text-sm font-medium text-gray-900 mb-1">GoFlyTo</div>
+              <div className="text-sm font-medium text-gray-900 mb-1">TasteEngine</div>
               <div className="text-gray-800">
                 <p className="mb-3">{message.content}</p>
                 <FlightListChat flights={message.flights} searchId={message.searchId} />
@@ -79,7 +79,7 @@ export const ChatMessage = memo(({ message, isStreaming }: ChatMessageProps) => 
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium text-gray-900">
-                  {isUser ? 'You' : 'GoFlyTo'}
+                  {isUser ? 'You' : 'TasteEngine'}
                 </span>
               </div>
               

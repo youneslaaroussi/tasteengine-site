@@ -36,6 +36,7 @@ import { GetInsightsDisplay } from './flow-view/get-insights-display'
 import { ImageGenerationDisplay } from './flow-view/image-generation-display'
 import { ScrapeUrlDisplay } from './flow-view/scrape-url-display'
 import { GetTrendingDisplay } from './flow-view/get-trending-display'
+import { AnalyzeEntitiesDisplay } from './flow-view/analyze-entities-display'
 
 interface NodeData extends Record<string, unknown> {
   type: string
@@ -62,15 +63,36 @@ function CustomNode({ data }: NodeProps) {
   }
 
   const getIcon = () => {
+    // Check for specific tool types first
+    if (hasSearchEntitiesContent(nodeData?.content)) {
+      return <img src="/qloo.png" alt="Qloo" className="w-6 h-6 object-contain" />
+    }
+    if (hasGetInsightsContent(nodeData?.content) || hasGetTrendingContent(nodeData?.content) || hasAnalyzeEntitiesContent(nodeData?.content)) {
+      return <img src="/qloo.png" alt="Qloo" className="w-6 h-6 object-contain" />
+    }
+    if (hasShopifyProductsContent(nodeData?.content)) {
+      return <img src="/shopify.png" alt="Shopify" className="w-6 h-6 object-contain" />
+    }
+    if (hasScrapeUrlContent(nodeData?.content)) {
+      return <img src="/scraperapi.png" alt="ScraperAPI" className="w-6 h-6 object-contain" />
+    }
+    if (hasImageGenerationContent(nodeData?.content)) {
+      return <img src="/openai.png" alt="OpenAI" className="w-6 h-6 object-contain" />
+    }
+    if (hasPanelUpdateContent(nodeData?.content)) {
+      return <img src="/logo.png" alt="TasteEngine" className="w-6 h-6 object-contain" />
+    }
+    
+    // Default icons for general node types
     switch (nodeData?.type) {
       case 'user':
-        return <MessageSquare className="w-4 h-4" />
+        return <MessageSquare className="w-6 h-6" />
       case 'assistant':
-        return <Brain className="w-4 h-4" />
+        return <img src="/openai.png" alt="OpenAI" className="w-6 h-6 object-contain" />
       case 'tool':
-        return <Zap className="w-4 h-4" />
+        return <Zap className="w-6 h-6" />
       default:
-        return <Database className="w-4 h-4" />
+        return <Database className="w-6 h-6" />
     }
   }
 
@@ -110,6 +132,8 @@ function CustomNode({ data }: NodeProps) {
                 ? 'min-w-[350px] max-w-[700px] bg-gradient-to-br from-teal-50 to-cyan-50 border-teal-300 text-teal-900 hover:from-teal-100 hover:to-cyan-100'
                 : hasGetTrendingContent(nodeData?.content)
                 ? 'min-w-[400px] max-w-[800px] bg-gradient-to-br from-pink-50 to-rose-50 border-pink-300 text-pink-900 hover:from-pink-100 hover:to-rose-100'
+                : hasAnalyzeEntitiesContent(nodeData?.content)
+                ? 'min-w-[400px] max-w-[800px] bg-gradient-to-br from-violet-50 to-purple-50 border-violet-300 text-violet-900 hover:from-violet-100 hover:to-purple-100'
                 : `min-w-[200px] max-w-[350px] ${getNodeColor()}`
             }`}
           >
@@ -151,6 +175,11 @@ function CustomNode({ data }: NodeProps) {
                   Trending Data
                 </span>
               )}
+              {hasAnalyzeEntitiesContent(nodeData?.content) && (
+                <span className="text-xs bg-violet-200 text-violet-800 px-2 py-1 rounded-full">
+                  Entity Analysis
+                </span>
+              )}
             </div>
             {nodeData?.content && typeof nodeData.content === 'string' && (
               <div className="text-xs">
@@ -184,6 +213,10 @@ function CustomNode({ data }: NodeProps) {
                  ) : hasGetTrendingContent(nodeData.content) ? (
                    <div>
                      <GetTrendingDisplay content={nodeData.content} />
+                   </div>
+                 ) : hasAnalyzeEntitiesContent(nodeData.content) ? (
+                   <div>
+                     <AnalyzeEntitiesDisplay content={nodeData.content} />
                    </div>
                  ) : (
                    <div>
@@ -244,6 +277,11 @@ function hasScrapeUrlContent(content: string): boolean {
 // Function to detect if content contains get_trending tool calls
 function hasGetTrendingContent(content: string): boolean {
   return typeof content === 'string' && content.includes("{% tool_complete 'get_trending'")
+}
+
+// Function to detect if content contains analyze_entities tool calls
+function hasAnalyzeEntitiesContent(content: string): boolean {
+  return typeof content === 'string' && content.includes("{% tool_complete 'analyze_entities'")
 }
 
 const nodeTypes = {
@@ -580,6 +618,7 @@ export function FlowView({ className = '' }: FlowViewProps) {
               if (hasImageGenerationContent(content)) return '#dc2626' // red
               if (hasScrapeUrlContent(content)) return '#14b8a6' // teal
               if (hasGetTrendingContent(content)) return '#ec4899' // pink
+              if (hasAnalyzeEntitiesContent(content)) return '#8b5cf6' // violet
             }
             
             switch (node.data?.type) {

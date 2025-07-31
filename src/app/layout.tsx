@@ -10,6 +10,7 @@ import { fontSans } from "@/lib/fonts"
 import { ChatLayoutWithHistory } from "@/components/chat-layout-with-history"
 import { Eruda } from "@/components/eruda"
 import { LoadingWrapper } from "@/components/loading-wrapper"
+import { OnboardingWrapper } from "@/components/onboarding-wrapper"
 
 
 const inter = Inter({ subsets: ["latin"] })
@@ -20,52 +21,39 @@ const jetbrainsMono = JetBrains_Mono({
 })
 
 export const metadata: Metadata = {
-  title: "GoFlyTo - AI Travel Assistant",
-  description: "Find the best flight deals with AI-powered search. Compare prices across multiple airlines and booking sites instantly.",
-  keywords: ["flight search", "travel assistant", "AI travel", "flight deals", "travel planning", "flight booking"],
-  authors: [{ name: "GoFlyTo" }],
-  creator: "GoFlyTo",
-  
-  // Open Graph
+  title: "TasteEngine - AI Marketing Intelligence Platform",
+  description: "Unlock consumer insights with Qloo-powered cultural AI. Strategic intelligence for marketing professionals, brand strategists, and business leaders.",
+  keywords: ["marketing intelligence", "consumer insights", "AI marketing", "brand strategy", "cultural intelligence", "audience analytics"],
+  authors: [{ name: "TasteEngine" }],
+  creator: "TasteEngine",
+  publisher: "TasteEngine",
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false,
+  },
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: "https://gofly.to",
-    siteName: "GoFlyTo",
-    title: "GoFlyTo - AI Travel Assistant",
-    description: "Find the best flight deals with AI-powered search. Compare prices across multiple airlines instantly.",
+    url: "https://tasteengine.com",
+    siteName: "TasteEngine",
+    title: "TasteEngine - AI Marketing Intelligence Platform",
+    description: "Unlock consumer insights with Qloo-powered cultural AI. Strategic intelligence for marketing professionals instantly.",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "TasteEngine - AI Marketing Intelligence Platform",
+      },
+    ],
   },
-  
-  // Twitter Card
   twitter: {
     card: "summary_large_image",
-    title: "GoFlyTo - AI Travel Assistant",
-    description: "Find the best flight deals with AI-powered search. Compare prices across multiple airlines instantly.",
+    title: "TasteEngine - AI Marketing Intelligence Platform",
+    description: "Unlock consumer insights with Qloo-powered cultural AI. Strategic intelligence for marketing professionals instantly.",
+    images: ["/twitter-image.png"],
   },
-  
-  // PWA Configuration
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "default",
-    title: "GoFlyTo",
-  },
-  
-  // Enhanced format detection for mobile
-  formatDetection: {
-    telephone: false,
-    date: false,
-    address: false,
-    email: false,
-  },
-  
-  other: {
-    "apple-mobile-web-app-capable": "yes",
-    "apple-mobile-web-app-status-bar-style": "default",
-    "apple-mobile-web-app-title": "GoFlyTo",
-    "mobile-web-app-capable": "yes",
-    "theme-color": "#ffffff",
-  },
-  
   robots: {
     index: true,
     follow: true,
@@ -77,8 +65,20 @@ export const metadata: Metadata = {
       "max-snippet": -1,
     },
   },
-  
-  category: "Travel",
+  manifest: "/manifest.json",
+  icons: {
+    icon: "/favicon.ico",
+    shortcut: "/favicon-16x16.png",
+    apple: "/apple-touch-icon.png",
+  },
+  verification: {
+    google: "",
+    yandex: "",
+  },
+  category: "Marketing Intelligence",
+  other: {
+    "apple-mobile-web-app-title": "TasteEngine",
+  },
 }
 
 export const viewport = {
@@ -99,7 +99,7 @@ export default function RootLayout({
       <head>
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="GoFlyTo" />
+        <meta name="apple-mobile-web-app-title" content="TasteEngine" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="theme-color" content="#ffffff" />
         <meta name="format-detection" content="telephone=no,date=no,address=no,email=no" />
@@ -110,24 +110,27 @@ export default function RootLayout({
             __html: JSON.stringify({
               "@context": "https://schema.org",
               "@type": "WebApplication",
-              "name": "GoFlyTo",
-              "description": "AI-powered travel assistant for finding the best flight deals",
-              "url": "https://gofly.to",
-              "applicationCategory": "Travel",
+              "name": "TasteEngine",
+              "url": "https://tasteengine.com",
+              "description": "AI-powered marketing intelligence platform with Qloo cultural insights",
               "operatingSystem": "Any",
+              "applicationCategory": "Marketing Intelligence",
+              "aggregateRating": {
+                "@type": "AggregateRating",
+                "ratingValue": "5.0",
+                "ratingCount": "100"
+              },
+              "category": "Marketing Intelligence",
               "offers": {
                 "@type": "Offer",
-                "category": "Travel Services",
-                "price": "0",
-                "priceCurrency": "USD"
+                "category": "SaaS"
               },
               "featureList": [
-                "AI-powered flight search",
-                "Multi-airline comparison",
-                "Real-time price tracking",
-                "Intelligent travel recommendations"
+                "AI-powered consumer insights",
+                "Cultural intelligence analysis",
+                "Strategic marketing recommendations"
               ]
-            })
+            }),
           }}
         />
       </head>
@@ -181,9 +184,11 @@ export default function RootLayout({
         <Eruda />
         <LoadingWrapper>
           <Providers>
-            <ChatLayoutWithHistory>
-              {children}
-            </ChatLayoutWithHistory>
+            <OnboardingWrapper>
+              <ChatLayoutWithHistory>
+                {children}
+              </ChatLayoutWithHistory>
+            </OnboardingWrapper>
           </Providers>
         </LoadingWrapper>
         <Toaster />

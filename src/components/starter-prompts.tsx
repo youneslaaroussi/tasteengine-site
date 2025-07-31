@@ -2,10 +2,11 @@
 
 import { memo } from 'react'
 import { Button } from '@/components/ui/button'
-import { Plane, MapPin, Calendar, DollarSign } from 'lucide-react'
+import { Brain, Target, TrendingUp, Users } from 'lucide-react'
 import { useChatContext } from '@/contexts/chat-context'
 import { useFlightSearch } from '@/contexts/flight-search-provider'
 import { useAnalytics } from '@/hooks/use-analytics'
+import Image from 'next/image'
 
 type Props = {
   onPromptClick: () => void
@@ -18,25 +19,25 @@ export const StarterPrompts = ({ onPromptClick }: Props) => {
 
   const prompts = [
     {
-      icon: <Plane className="w-4 h-4" />,
-      text: "Find me flights from New York to San Francisco for next weekend",
+      icon: <Target className="w-4 h-4" />,
+      text: "Create a comprehensive brand positioning strategy for a luxury hospitality client",
     },
     {
-      icon: <DollarSign className="w-4 h-4" />,
-      text: "Show me the cheapest flights from Los Angeles to Tokyo in March",
+      icon: <TrendingUp className="w-4 h-4" />,
+      text: "Analyze consumer sentiment trends for emerging food & beverage categories",
     },
     {
-      icon: <Calendar className="w-4 h-4" />,
-      text: "Plan a weekend trip from Chicago to Miami with flight recommendations",
+      icon: <Brain className="w-4 h-4" />,
+      text: "Generate actionable insights for cross-cultural marketing expansion",
     },
     {
-      icon: <MapPin className="w-4 h-4" />,
-      text: "What are the trending travel destinations right now?",
+      icon: <Users className="w-4 h-4" />,
+      text: "Identify high-affinity audience segments for premium lifestyle brands",
     },
   ]
 
   const handlePromptClick = (prompt: string) => {
-    trackEvent('starter_prompt', 'chat', prompt, 1)
+    trackEvent('starter_prompt', 'campaign', prompt, 1)
     onPromptClick()
     
     // Include current flight data context
@@ -51,14 +52,14 @@ export const StarterPrompts = ({ onPromptClick }: Props) => {
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
       <div className="text-center mb-8">
-        <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
-          <Plane className="w-8 h-8 text-white" />
+        <div className="h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+          <Image src="/qloo.png" alt="Qloo" width={100} height={32} className="h-16" />
         </div>
         <h1 className="text-2xl font-medium text-gray-900 mb-2">
-          How can I help you travel today?
+          How can I accelerate your marketing intelligence today?
         </h1>
         <p className="text-gray-600">
-          Find flights, plan trips, and discover destinations with AI assistance
+          Powered by Qloo's cultural AI to deliver strategic insights, consumer intelligence, and data-driven marketing solutions
         </p>
       </div>
 

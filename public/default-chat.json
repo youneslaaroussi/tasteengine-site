@@ -1,0 +1,26 @@
+{
+  "id": "default-welcome-chat",
+  "title": "Welcome to TasteEngine",
+  "createdAt": "2024-01-01T00:00:00.000Z",
+  "updatedAt": "2024-01-01T00:00:00.000Z",
+  "messages": [
+    {
+      "id": "welcome-msg-1",
+      "role": "assistant",
+      "content": "👋 Welcome to **TasteEngine**! I'm your AI assistant designed to help you discover amazing experiences, plan trips, and explore the world.\n\n✨ Here's what I can help you with:\n\n🌍 **Travel Planning**\n- Find and book flights\n- Discover destinations\n- Plan itineraries\n\n🗺️ **Interactive Tools**\n- Map visualizations\n- Miro board collaboration\n- Qloo recommendations\n\n💡 **Smart Assistance**\n- Answer questions\n- Research topics\n- Generate insights\n\nTry asking me something like \"Find flights to Tokyo\" or \"What are the best restaurants in Paris?\" to get started!",
+      "createdAt": "2024-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "welcome-msg-2", 
+      "role": "user",
+      "content": "What makes TasteEngine different from other travel assistants?",
+      "createdAt": "2024-01-01T00:00:30.000Z"
+    },
+    {
+      "id": "welcome-msg-3",
+      "role": "assistant", 
+      "content": "Great question! TasteEngine stands out in several key ways:\n\n🔗 **Integrated Workflow**\n- Everything works together seamlessly - from flight search to map visualization to collaborative planning\n- Real-time updates across all panels and tools\n\n🧠 **Contextual Intelligence**\n- I remember our conversation and use that context to provide better recommendations\n- Smart integration with external services like Miro, Shopify, and Qloo\n\n📊 **Visual Collaboration**\n- Interactive maps that update based on our conversation\n- Miro boards for collaborative planning\n- Flow view to see the reasoning behind recommendations\n\n⚡ **Powerful Search**\n- Advanced flight search with real-time pricing\n- Entity analysis and trend insights\n- Image generation for inspiration\n\n🎯 **Personalization**\n- Learns your preferences over time\n- Tailored recommendations based on your interests\n- Memory system that recalls important details\n\nWould you like to try any of these features? I can help you plan a trip, search for flights, or explore recommendations for any destination!",
+      "createdAt": "2024-01-01T00:01:00.000Z"
+    }
+  ]
+} 
