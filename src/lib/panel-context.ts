@@ -8,9 +8,9 @@ const panelRegistry = new Map<string, {
 }>()
 
 export function registerPanel(panelType: string, storeName: string, getStore: () => any, description: string) {
-  console.log('[PANEL_REGISTRY] Registering panel:', panelType, 'with store:', storeName);
+  console.log('[MIRO_DEBUG] registerPanel called:', panelType, 'with store:', storeName);
   panelRegistry.set(panelType, { storeName, getStore, description })
-  console.log('[PANEL_REGISTRY] Registry now has:', Array.from(panelRegistry.keys()));
+  console.log('[MIRO_DEBUG] Registry now has:', Array.from(panelRegistry.keys()));
 }
 
 export function getAllPanelData(chatSessionId?: string) {
@@ -81,7 +81,23 @@ export function formatPanelContextForAgent(chatSessionId?: string): string {
     context.push(`  Has Data: ${data.hasData}`)
     
     if (data.hasData && data.currentData) {
-      context.push(`  Current Data: ${JSON.stringify(data.currentData, null, 2)}`)
+      // Special formatting for Miro board data
+      if (panelType === 'miro-panel' && data.currentData.elements) {
+        const elements = data.currentData.elements
+        context.push(`  Board ID: ${data.currentData.boardId || 'Not set'}`)
+        context.push(`  Board URL: ${data.currentData.boardUrl || 'Not available'}`)
+        context.push(`  Elements Count: ${elements.length}`)
+        
+        if (elements.length > 0) {
+          context.push(`  Elements:`)
+          elements.forEach((element: any, index: number) => {
+            context.push(`    ${index + 1}. ${element.type.toUpperCase()}: "${element.content || 'No content'}" at (${element.position.x}, ${element.position.y})`)
+          })
+        }
+      } else {
+        context.push(`  Current Data: ${JSON.stringify(data.currentData, null, 2)}`)
+      }
+      
       if (data.lastUpdated) {
         context.push(`  Last Updated: ${new Date(data.lastUpdated).toISOString()}`)
       }
@@ -102,31 +118,73 @@ export function formatPanelContextForAgent(chatSessionId?: string): string {
 
 // Function to update panel data (called by the tool handler)
 export function updatePanelData(panelType: string, newData: any, chatSessionId?: string): { success: boolean; message: string } {
-  console.log('[UPDATE_PANEL_DATA] Called with:', { panelType, newData, chatSessionId });
-  console.log('[UPDATE_PANEL_DATA] Registry size:', panelRegistry.size);
-  console.log('[UPDATE_PANEL_DATA] Registry keys:', Array.from(panelRegistry.keys()));
+  console.log('[MIRO_DEBUG] updatePanelData called with:', { panelType, newData, chatSessionId });
+  console.log('[MIRO_DEBUG] Registry size:', panelRegistry.size);
+  console.log('[MIRO_DEBUG] Registry keys:', Array.from(panelRegistry.keys()));
   
   const panelInfo = panelRegistry.get(panelType)
   
   if (!panelInfo) {
+    console.log('[MIRO_DEBUG] Panel not found in registry');
     return {
       success: false,
       message: `Panel type '${panelType}' not found. Available panels: ${Array.from(panelRegistry.keys()).join(', ')}`
     }
   }
   
+  console.log('[MIRO_DEBUG] Panel info found:', panelInfo);
+  
   try {
+    console.log('[MIRO_DEBUG] Getting store...');
     const store = panelInfo.getStore()
-    const state = store.getState()
+    console.log('[MIRO_DEBUG] Store obtained:', !!store);
     
+    if (!store) {
+      console.log('[MIRO_DEBUG] Store is null/undefined');
+      return {
+        success: false,
+        message: `Store not available for ${panelType} panel`
+      }
+    }
+    
+    console.log('[MIRO_DEBUG] Getting state...');
+    const state = store.getState()
+    console.log('[MIRO_DEBUG] State obtained:', !!state);
+    console.log('[MIRO_DEBUG] State keys:', Object.keys(state || {}));
+    
+    if (!state) {
+      console.log('[MIRO_DEBUG] State is null/undefined');
+      return {
+        success: false,
+        message: `State not available for ${panelType} panel`
+      }
+    }
+    
+    if (typeof state.updateData !== 'function') {
+      console.log('[MIRO_DEBUG] updateData is not a function, type:', typeof state.updateData);
+      return {
+        success: false,
+        message: `updateData method not available for ${panelType} panel`
+      }
+    }
+    
+    console.log('[MIRO_DEBUG] Calling updateData with:', newData);
+    // Get current data and merge with new data instead of replacing
+    const currentData = state.currentSession?.data || {}
+    const mergedData = { ...currentData, ...newData }
+    console.log('[MIRO_DEBUG] Current data:', currentData);
+    console.log('[MIRO_DEBUG] Merged data:', mergedData);
     // Update the panel data
-    state.updateData(newData)
+    state.updateData(mergedData)
+    console.log('[MIRO_DEBUG] updateData call completed');
     
     return {
       success: true,
       message: `Successfully updated ${panelType} panel data`
     }
   } catch (error) {
+    console.error('[MIRO_DEBUG] Error in updatePanelData:', error);
+    console.error('[MIRO_DEBUG] Error stack:', error instanceof Error ? error.stack : 'No stack');
     return {
       success: false,
       message: `Failed to update ${panelType} panel: ${error instanceof Error ? error.message : 'Unknown error'}`

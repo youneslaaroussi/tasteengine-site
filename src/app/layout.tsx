@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils"
 import { fontSans } from "@/lib/fonts"
 import { ChatLayoutWithHistory } from "@/components/chat-layout-with-history"
 import { Eruda } from "@/components/eruda"
+import { LoadingWrapper } from "@/components/loading-wrapper"
 
 
 const inter = Inter({ subsets: ["latin"] })
@@ -48,8 +49,6 @@ export const metadata: Metadata = {
     statusBarStyle: "default",
     title: "GoFlyTo",
   },
-  
-
   
   // Enhanced format detection for mobile
   formatDetection: {
@@ -180,11 +179,13 @@ export default function RootLayout({
           <Analytics />
         </Suspense>
         <Eruda />
-        <Providers>
-          <ChatLayoutWithHistory>
-            {children}
-          </ChatLayoutWithHistory>
-        </Providers>
+        <LoadingWrapper>
+          <Providers>
+            <ChatLayoutWithHistory>
+              {children}
+            </ChatLayoutWithHistory>
+          </Providers>
+        </LoadingWrapper>
         <Toaster />
       </body>
     </html>

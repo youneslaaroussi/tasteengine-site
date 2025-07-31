@@ -2,14 +2,14 @@
 
 import { useState } from 'react'
 import { format } from 'date-fns'
-import { 
-  MessageSquare, 
-  Plus, 
-  Search, 
-  Download, 
-  Upload, 
-  Settings, 
-  Trash2, 
+import {
+  MessageSquare,
+  Plus,
+  Search,
+  Download,
+  Upload,
+  Settings,
+  Trash2,
   Edit2,
   MoreHorizontal
 } from 'lucide-react'
@@ -34,20 +34,20 @@ import {
 } from '@/components/ui/sidebar'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuTrigger,
   DropdownMenuSeparator
 } from '@/components/ui/dropdown-menu'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useChatStore } from '@/stores/chat-store'
-import { 
-  exportSessionToFile, 
-  exportAllSessionsToFile, 
-  openImportFilePicker, 
-  getStorageStats 
+import {
+  exportSessionToFile,
+  exportAllSessionsToFile,
+  openImportFilePicker,
+  getStorageStats
 } from '@/lib/chat-storage'
 import { toast } from 'sonner'
 
@@ -55,7 +55,7 @@ export function ChatHistorySidebar() {
   const [searchQuery, setSearchQuery] = useState('')
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null)
   const [editingTitle, setEditingTitle] = useState('')
-  
+
   const {
     sessions,
     currentSession,
@@ -137,7 +137,7 @@ export function ChatHistorySidebar() {
     const today = new Date()
     const yesterday = new Date(today)
     yesterday.setDate(yesterday.getDate() - 1)
-    
+
     if (format(sessionDate, 'yyyy-MM-dd') === format(today, 'yyyy-MM-dd')) {
       return 'Today'
     } else if (format(sessionDate, 'yyyy-MM-dd') === format(yesterday, 'yyyy-MM-dd')) {
@@ -176,7 +176,7 @@ export function ChatHistorySidebar() {
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
-      
+
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>Chat History</SidebarGroupLabel>
@@ -215,7 +215,7 @@ export function ChatHistorySidebar() {
                             </div>
                           ) : (
                             <AnimatePresence mode="wait">
-                              <motion.span 
+                              <motion.span
                                 key={session.title}
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
@@ -262,7 +262,7 @@ export function ChatHistorySidebar() {
                   </SidebarMenuSub>
                 </SidebarMenuItem>
               ))}
-              
+
               {sessions.length === 0 && (
                 <SidebarMenuItem>
                   <div className="text-center py-8 text-muted-foreground">
@@ -272,7 +272,7 @@ export function ChatHistorySidebar() {
                   </div>
                 </SidebarMenuItem>
               )}
-              
+
               {filteredSessions.length === 0 && sessions.length > 0 && (
                 <SidebarMenuItem>
                   <div className="text-center py-8 text-muted-foreground">
@@ -286,7 +286,7 @@ export function ChatHistorySidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      
+
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
@@ -340,7 +340,7 @@ export function ChatHistorySkeleton() {
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
-      
+
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>
@@ -357,7 +357,7 @@ export function ChatHistorySkeleton() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      
+
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>

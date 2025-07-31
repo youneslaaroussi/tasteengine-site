@@ -116,13 +116,18 @@ export function createPanelStore<T = any>(
         
         // Data management
         updateData: (updater) => {
+          console.log('[MIRO_DEBUG] updateData called with:', updater);
+          console.log('[MIRO_DEBUG] Current session exists:', !!get().currentSession);
           set((state) => {
             if (state.currentSession) {
+              console.log('[MIRO_DEBUG] Updating existing session:', state.currentSession.id);
+              console.log('[MIRO_DEBUG] Previous data:', state.currentSession.data);
               if (typeof updater === 'function') {
                 state.currentSession.data = (updater as (prev: T) => T)(state.currentSession.data as T) as any
               } else {
                 state.currentSession.data = updater as any
               }
+              console.log('[MIRO_DEBUG] New data:', state.currentSession.data);
               state.currentSession.updatedAt = new Date()
               
               // Update session in sessions array
@@ -131,10 +136,12 @@ export function createPanelStore<T = any>(
                 state.sessions[sessionIndex] = state.currentSession as any
               }
             } else {
+              console.log('[MIRO_DEBUG] Creating new session with data');
               // Create new session with data
               const newSession = createInitialSession(
                 typeof updater === 'function' ? (updater as (prev: T) => T)(defaultData) : updater
               )
+              console.log('[MIRO_DEBUG] New session created:', newSession);
               state.sessions.unshift(newSession as any)
               state.currentSession = newSession as any
             }

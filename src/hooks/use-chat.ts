@@ -11,6 +11,7 @@ import { updatePanelData } from '@/lib/panel-context'
 import { nanoid } from 'nanoid'
 import { formatPanelContextForAgent } from '@/lib/panel-context'
 import { ZCOOL_KuaiLe } from 'next/font/google'
+import { storeManager } from '@/lib/store-manager'
 
 export type UseChatOptions = {
   initialMessages?: ChatMessage[]
@@ -99,22 +100,59 @@ export function useChat({
       console.log('[CHAT] Tool complete for:', toolCall.toolName, 'with data:', toolCall.data);
       
       // Handle update_panel FIRST before toolId check
-      console.log('[CHAT] Checking toolCall.toolName:', toolCall.toolName, 'equals update_panel?', toolCall.toolName === 'update_panel');
+      console.log('[MIRO_DEBUG] Checking toolCall.toolName:', toolCall.toolName, 'equals update_panel?', toolCall.toolName === 'update_panel');
       if (toolCall.toolName === 'update_panel') {
-        console.log('[CHAT] Handling update_panel in main thread:', toolCall.data);
+        console.log('[MIRO_DEBUG] Handling update_panel in main thread:', toolCall.data);
         try {
           const result = toolCall.data;
+          console.log('[MIRO_DEBUG] Raw tool result:', result);
           
           if (result && result.panelType) {
             // Extract panel data (everything except metadata)
             const { panelType, success, message, action, timestamp, ...panelData } = result;
             
-            console.log('[CHAT] Calling updatePanelData with:', { panelType, panelData });
+            console.log('[MIRO_DEBUG] Extracted panelType:', panelType);
+            console.log('[MIRO_DEBUG] Extracted panelData:', panelData);
+            console.log('[MIRO_DEBUG] Current session ID:', useChatStore.getState().currentSession?.id);
+            console.log('[MIRO_DEBUG] Calling updatePanelData with:', { panelType, panelData });
             const updateResult = updatePanelData(panelType, panelData, useChatStore.getState().currentSession?.id);
-            console.log('[CHAT] Panel update result:', updateResult);
+            console.log('[MIRO_DEBUG] Panel update result:', updateResult);
+          } else {
+            console.log('[MIRO_DEBUG] No result or panelType in tool data');
           }
         } catch (error) {
-          console.error('[CHAT] Error handling update_panel:', error);
+          console.error('[MIRO_DEBUG] Error handling update_panel:', error);
+        }
+      }
+
+      // Handle Qloo tool results
+      const qlooTools = [
+        'search_entities', 'get_entities_by_ids', 'search_tags', 'get_tag_types',
+        'find_audiences', 'get_audience_types', 'get_insights', 'get_insights_deep_dive',
+        'compare_insights', 'analyze_entities', 'get_trending', 'explain_recommendation',
+        'geocode_location'
+      ];
+      
+      if (qlooTools.includes(toolCall.toolName)) {
+        console.log('[QLOO_DEBUG] Handling Qloo tool result:', toolCall.toolName, toolCall.data);
+        try {
+          const qlooResult = {
+            toolName: toolCall.toolName,
+            timestamp: Date.now(),
+            success: toolCall.data?.success,
+            duration: toolCall.data?.duration,
+            ...toolCall.data
+          };
+          
+          // Add to Qloo panel via global function
+          if (typeof window !== 'undefined' && (window as any).addQlooResult) {
+            (window as any).addQlooResult(qlooResult);
+            console.log('[QLOO_DEBUG] Added result to Qloo panel');
+          } else {
+            console.log('[QLOO_DEBUG] addQlooResult function not available yet');
+          }
+        } catch (error) {
+          console.error('[QLOO_DEBUG] Error handling Qloo tool result:', error);
         }
       }
       
@@ -225,6 +263,35 @@ export function useChat({
           }
         }
 
+        // Handle Qloo tool calls - send results to Qloo panel
+        if (toolCall.toolName && (
+          toolCall.toolName.includes('search_entities') ||
+          toolCall.toolName.includes('get_insights') ||
+          toolCall.toolName.includes('get_audiences') ||
+          toolCall.toolName.includes('get_tags') ||
+          toolCall.toolName.includes('get_trending') ||
+          toolCall.toolName.includes('compare_insights') ||
+          toolCall.toolName.includes('deep_dive')
+        )) {
+          console.log('[QLOO_DEBUG] Qloo tool call detected:', toolCall.toolName, toolCall.data);
+          
+          // Send to Qloo panel via global function
+          if (typeof window !== 'undefined' && (window as any).addQlooResult) {
+            const qlooResult = {
+              id: `qloo-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              toolName: toolCall.toolName,
+              timestamp: Date.now(),
+              data: toolCall.data?.result || toolCall.data || {},
+              success: toolCall.data?.success !== false
+            };
+            
+            console.log('[QLOO_DEBUG] Adding Qloo result to panel:', qlooResult);
+            (window as any).addQlooResult(qlooResult);
+          } else {
+            console.warn('[QLOO_DEBUG] addQlooResult function not available on window');
+          }
+        }
+
         const toolId = toolCall.id || Object.values(toolCallIdsRef.current).find(id => 
           messageContentRef.current.includes(`{% tool_start '${toolCall.toolName}' '${id}' %}`)
         );
@@ -323,6 +390,10 @@ export function useChat({
         const panelContext = formatPanelContextForAgent(currentSessionId)
         console.log('[SUBMIT] Panel context length:', panelContext.length);
 
+        // Get Shopify credentials in main thread (worker can't access localStorage)
+        const credentials = storeManager.getActiveStoreCredentials();
+        console.log('[SUBMIT] Shopify credentials available:', !!credentials);
+
         // Create fresh Comlink proxies for this call
         const proxiedOnUpdate = Comlink.proxy(onUpdateRef.current);
         const proxiedOnToolCall = Comlink.proxy(onToolCallRef.current);
@@ -353,7 +424,8 @@ export function useChat({
           proxiedOnPanelUpdate,
           currentSessionId,
           panelContext,
-          images // Pass images to worker
+          images,
+          credentials // Pass Shopify credentials to worker
         )
         console.log('[SUBMIT] Worker.sendMessage completed');
 

@@ -5,8 +5,9 @@ import { SearchEntitiesRenderer } from './search-entities-renderer';
 import { MemoryToolRenderer } from './memory-tool-renderer';
 import { PanelUpdateRenderer } from './panel-update-renderer';
 import { GenericToolRenderer } from './generic-tool-renderer';
+import { ImageGenerationRenderer } from './image-generation-renderer';
 
-export { SearchEntitiesRenderer, MemoryToolRenderer, PanelUpdateRenderer, GenericToolRenderer };
+export { SearchEntitiesRenderer, MemoryToolRenderer, PanelUpdateRenderer, GenericToolRenderer, ImageGenerationRenderer };
 
 interface ToolRendererProps {
   data: any;
@@ -25,6 +26,11 @@ export function getToolRenderer(toolName: string): React.ComponentType<ToolRende
     
     case 'update_panel':
       return PanelUpdateRenderer;
+    
+    case 'generate_image':
+    case 'create_image':
+    case 'image_generation':
+      return ImageGenerationRenderer;
     
     // Add more specific renderers here as needed
     case 'get_user_preferences':

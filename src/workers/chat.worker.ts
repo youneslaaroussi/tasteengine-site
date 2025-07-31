@@ -9,6 +9,9 @@ import { updatePanelData } from '@/lib/panel-context';
 // Store current abort controller
 let currentAbortController: AbortController | null = null;
 
+// Store tool IDs to ensure consistent pairing of tool_start and tool_complete
+const toolIdMap = new Map<string, string>();
+
 const chatApi = {
   async sendMessage(
     message: string,
@@ -19,7 +22,8 @@ const chatApi = {
     onPanelUpdate: (panelType: string, panelData: any) => void,
     chatSessionId?: string,
     panelContext?: string,
-    images?: string[]
+    images?: string[],
+    credentials?: { shopDomain: string; accessToken: string } | null
   ) {
     console.log('[WORKER] Starting sendMessage');
     console.log('[WORKER] Flight data provided:', flightData);
@@ -27,11 +31,17 @@ const chatApi = {
     // Create abort controller for this request
     currentAbortController = new AbortController();
     
+    // Clear tool ID map for fresh conversation
+    toolIdMap.clear();
+    
     // Get memories to include in the request
     const memories = await memoryService.getMemoriesForChat();
     console.log('[WORKER] Memories loaded:', memories.length);
     console.log('[WORKER] Panel context received:', panelContext ? panelContext.length : 0, 'characters');
     console.log('[WORKER] Conversation history with images:', conversationHistory.filter(m => m.images && m.images.length > 0).map(m => ({ role: m.role, content: m.content.substring(0, 30), imageCount: m.images?.length })));
+    
+    // Log Shopify credentials availability
+    console.log('[WORKER] Shopify credentials available:', !!credentials);
     
     // Build conversation history including flight context - preserve original message structure
     const conversationWithFlights = conversationHistory.map(msg => {
@@ -68,6 +78,11 @@ const chatApi = {
       conversationHistory: conversationWithFlights,
       memories,
       images,
+      // Include Shopify credentials if available
+      ...(credentials && {
+        shopDomain: credentials.shopDomain,
+        accessToken: credentials.accessToken
+      })
     };
 
     console.log('[WORKER] Request body conversation history length:', conversationWithFlights.length);
@@ -244,15 +259,40 @@ const chatApi = {
                 } else if (data.type === 'tool_call' && data.data?.tool_name) {
                   // Handle new backend tool call format
                   console.log('[WORKER] Tool call:', data.data.tool_name);
+                  
+                  // Generate consistent ID for this tool call
+                  const toolId = nanoid();
+                  const toolKey = `${data.data.tool_name}_${Date.now()}`;
+                  toolIdMap.set(toolKey, toolId);
+                  console.log('[WORKER] Tool start ID generated:', toolId, 'for', data.data.tool_name);
+                  
                   const toolData = {
                     type: 'tool_start',
                     toolName: data.data.tool_name,
+                    id: toolId,
                     ...data.data
                   };
                   onToolCall(toolData);
                 } else if (data.type === 'tool_result' && data.data?.tool_name) {
                   // Handle new backend tool result format
                   console.log('[WORKER] Tool result:', data.data.tool_name);
+                  
+                  // Find the matching tool ID for this result
+                  let matchingToolId: string | undefined;
+                  for (const [toolKey, toolId] of toolIdMap.entries()) {
+                    if (toolKey.startsWith(`${data.data.tool_name}_`)) {
+                      matchingToolId = toolId;
+                      toolIdMap.delete(toolKey); // Remove to prevent reuse
+                      break;
+                    }
+                  }
+                  
+                  if (!matchingToolId) {
+                    console.warn('[WORKER] No matching tool ID found for:', data.data.tool_name);
+                    matchingToolId = nanoid(); // Fallback
+                  } else {
+                    console.log('[WORKER] Tool complete ID matched:', matchingToolId, 'for', data.data.tool_name);
+                  }
                   
                   // Handle update_panel tool specifically for new backend format
                   if (data.data.tool_name === 'update_panel' && data.data.result) {
@@ -271,6 +311,7 @@ const chatApi = {
                   const toolData = {
                     type: 'tool_complete',
                     toolName: data.data.tool_name,
+                    id: matchingToolId,
                     data: data.data.result || data.data,
                     ...data.data
                   };

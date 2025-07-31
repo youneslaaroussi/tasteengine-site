@@ -4,10 +4,29 @@ import { persist } from 'zustand/middleware'
 import { ChatMessage } from '@/types/chat'
 import { nanoid } from 'nanoid'
 
+// Simplified serializable types for flow state
+export interface SerializableNodePosition {
+  id: string
+  x: number
+  y: number
+}
+
+export interface SerializableViewport {
+  x: number
+  y: number
+  zoom: number
+}
+
+export interface FlowState {
+  nodePositions: SerializableNodePosition[]
+  viewport: SerializableViewport
+}
+
 export interface ChatSession {
   id: string
   title: string
   messages: ChatMessage[]
+  flowState?: FlowState
   createdAt: Date
   updatedAt: Date
 }
@@ -42,6 +61,11 @@ interface ChatActions {
     updater: string | ((prevContent: string) => string)
   ) => void
   clearMessages: () => void
+  
+  // Flow state management
+  saveFlowState: (flowState: FlowState) => void
+  getFlowState: () => FlowState | undefined
+  clearFlowState: () => void
   
   // Loading states
   setLoading: (loading: boolean) => void
@@ -223,7 +247,40 @@ export const useChatStore = create<ChatStore>()(
         })
       },
       
-      // Input management
+      // Flow state management
+      saveFlowState: (flowState: FlowState) => {
+        set((state) => {
+          if (state.currentSession) {
+            state.currentSession.flowState = flowState
+            state.currentSession.updatedAt = new Date()
+            
+            // Update session in sessions array
+            const sessionIndex = state.sessions.findIndex(s => s.id === state.currentSession!.id)
+            if (sessionIndex !== -1) {
+              state.sessions[sessionIndex] = state.currentSession
+            }
+          }
+        })
+      },
+      
+      getFlowState: () => {
+        return get().currentSession?.flowState
+      },
+      
+      clearFlowState: () => {
+        set((state) => {
+          if (state.currentSession) {
+            state.currentSession.flowState = undefined
+            state.currentSession.updatedAt = new Date()
+            
+            // Update session in sessions array
+            const sessionIndex = state.sessions.findIndex(s => s.id === state.currentSession!.id)
+            if (sessionIndex !== -1) {
+              state.sessions[sessionIndex] = state.currentSession
+            }
+          }
+        })
+      },
       
       // Loading states
       setLoading: (loading: boolean) => {

@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { useMapEvents } from 'react-leaflet'
 import type { LeafletMouseEvent } from 'leaflet'
+import { motion, AnimatePresence } from 'motion/react'
 
 // Dynamically import map components to avoid SSR issues
 const MapContainer = dynamic(() => import('react-leaflet').then(mod => mod.MapContainer), { ssr: false })
@@ -29,6 +30,7 @@ interface MapPin {
   lng: number
   title: string
   timestamp: number
+  isNew?: boolean
 }
 
 interface MapData {
@@ -77,6 +79,52 @@ function MapEventHandler({ onMapClick, onZoomChange }: {
   return null
 }
 
+// Animated marker component
+function AnimatedMarker({ pin, onRemove }: { 
+  pin: MapPin
+  onRemove: (id: string) => void 
+}) {
+  const markerRef = useRef<any>(null)
+  
+  useEffect(() => {
+    if (pin.isNew && markerRef.current) {
+      const markerElement = markerRef.current._icon
+      if (markerElement) {
+        markerElement.style.animation = 'pinDrop 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+      }
+    }
+  }, [pin.isNew])
+
+  return (
+    <Marker 
+      key={pin.id} 
+      position={[pin.lat, pin.lng]}
+      ref={markerRef}
+    >
+      <Popup>
+        <div className="flex flex-col gap-2">
+          <div>
+            <strong>{pin.title}</strong>
+          </div>
+          <div className="text-sm text-gray-500">
+            Lat: {pin.lat.toFixed(6)}<br />
+            Lng: {pin.lng.toFixed(6)}
+          </div>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => onRemove(pin.id)}
+            className="h-6 text-xs"
+          >
+            <Trash2 className="h-3 w-3 mr-1" />
+            Remove
+          </Button>
+        </div>
+      </Popup>
+    </Marker>
+  )
+}
+
 export function MapPanel() {
   const { currentSession: chatSession } = useChatStore()
   const [isClient, setIsClient] = useState(false)
@@ -116,18 +164,21 @@ export function MapPanel() {
 
   // Update map view when data changes (e.g., switching chat sessions)
   useEffect(() => {
-    if (mapRef.current && data) {
+    if (mapRef.current && data && data.position) {
       mapRef.current.setView([data.position.lat, data.position.lng], data.zoom)
     }
-  }, [data.position.lat, data.position.lng, data.zoom, chatSession?.id])
+  }, [data?.position?.lat, data?.position?.lng, data?.zoom, chatSession?.id])
 
   const handleMapClick = useCallback((lat: number, lng: number) => {
+    if (!data) return
+
     const newPin: MapPin = {
       id: `pin-${Date.now()}`,
       lat,
       lng,
       title: `Pin ${data.pins.length + 1}`,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      isNew: true
     }
 
     const newData: MapData = {
@@ -137,9 +188,22 @@ export function MapPanel() {
 
     save(newData)
     updateTitle()
+
+    // Clear the isNew flag after animation completes
+    setTimeout(() => {
+      const updatedData: MapData = {
+        ...newData,
+        pins: newData.pins.map(pin => 
+          pin.id === newPin.id ? { ...pin, isNew: false } : pin
+        )
+      }
+      save(updatedData)
+    }, 700)
   }, [data, save, updateTitle])
 
   const handleZoomChange = useCallback((zoom: number) => {
+    if (!data) return
+
     const newData: MapData = {
       ...data,
       zoom
@@ -148,6 +212,8 @@ export function MapPanel() {
   }, [data, save])
 
   const handleRemovePin = useCallback((pinId: string) => {
+    if (!data) return
+
     const newData: MapData = {
       ...data,
       pins: data.pins.filter((pin: MapPin) => pin.id !== pinId)
@@ -157,6 +223,8 @@ export function MapPanel() {
   }, [data, save, updateTitle])
 
   const handleClearPins = useCallback(() => {
+    if (!data) return
+
     const newData: MapData = {
       ...data,
       pins: []
@@ -185,25 +253,25 @@ export function MapPanel() {
   }, [])
 
   const handleCenterToLocation = useCallback(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const lat = position.coords.latitude
-          const lng = position.coords.longitude
-          const newData: MapData = {
-            ...data,
-            position: { lat, lng }
-          }
-          save(newData)
-          if (mapRef.current) {
-            mapRef.current.setView([lat, lng], data.zoom)
-          }
-        },
-        (error) => {
-          console.error('Error getting location:', error)
+    if (!data || !navigator.geolocation) return
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const lat = position.coords.latitude
+        const lng = position.coords.longitude
+        const newData: MapData = {
+          ...data,
+          position: { lat, lng }
         }
-      )
-    }
+        save(newData)
+        if (mapRef.current) {
+          mapRef.current.setView([lat, lng], data.zoom)
+        }
+      },
+      (error) => {
+        console.error('Error getting location:', error)
+      }
+    )
   }, [data, save])
 
   if (!chatSession) {
@@ -218,6 +286,14 @@ export function MapPanel() {
     return (
       <div className="h-full flex items-center justify-center text-gray-500">
         Loading map...
+      </div>
+    )
+  }
+
+  if (!data) {
+    return (
+      <div className="h-full flex items-center justify-center text-gray-500">
+        Loading map data...
       </div>
     )
   }
@@ -268,9 +344,9 @@ export function MapPanel() {
 
         <div className="flex gap-1 items-center">
           <span className="text-xs text-gray-500">
-            {data.pins.length} pin{data.pins.length === 1 ? '' : 's'}
+            {data?.pins?.length || 0} pin{(data?.pins?.length || 0) === 1 ? '' : 's'}
           </span>
-          {data.pins.length > 0 && (
+          {(data?.pins?.length || 0) > 0 && (
             <Button 
               variant="ghost" 
               size="sm" 
@@ -287,8 +363,8 @@ export function MapPanel() {
       {/* Map Container */}
       <div className="flex-1 min-h-0 relative">
         <MapContainer
-          center={[data.position.lat, data.position.lng]}
-          zoom={data.zoom}
+          center={[data.position?.lat || defaultMapData.position.lat, data.position?.lng || defaultMapData.position.lng]}
+          zoom={data.zoom || defaultMapData.zoom}
           style={{ height: '100%', width: '100%' }}
           ref={mapRef}
           key={chatSession?.id || 'default'}
@@ -303,29 +379,12 @@ export function MapPanel() {
             onZoomChange={handleZoomChange}
           />
           
-          {data.pins.map((pin: MapPin) => (
-            <Marker key={pin.id} position={[pin.lat, pin.lng]}>
-              <Popup>
-                <div className="flex flex-col gap-2">
-                  <div>
-                    <strong>{pin.title}</strong>
-                  </div>
-                  <div className="text-sm text-gray-500">
-                    Lat: {pin.lat.toFixed(6)}<br />
-                    Lng: {pin.lng.toFixed(6)}
-                  </div>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => handleRemovePin(pin.id)}
-                    className="h-6 text-xs"
-                  >
-                    <Trash2 className="h-3 w-3 mr-1" />
-                    Remove
-                  </Button>
-                </div>
-              </Popup>
-            </Marker>
+          {data.pins?.map((pin: MapPin) => (
+            <AnimatedMarker 
+              key={pin.id} 
+              pin={pin} 
+              onRemove={handleRemovePin}
+            />
           ))}
         </MapContainer>
         
@@ -350,6 +409,26 @@ export function MapPanel() {
         
         .leaflet-popup-content-wrapper {
           border-radius: 8px;
+        }
+
+        @keyframes pinDrop {
+          0% {
+            transform: translateY(-100px) scale(0);
+            opacity: 0;
+          }
+          50% {
+            opacity: 1;
+          }
+          70% {
+            transform: translateY(0) scale(1.1);
+          }
+          85% {
+            transform: translateY(-5px) scale(0.95);
+          }
+          100% {
+            transform: translateY(0) scale(1);
+            opacity: 1;
+          }
         }
       `}</style>
     </div>

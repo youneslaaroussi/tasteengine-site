@@ -1,6 +1,6 @@
 'use client'
 
-import { MessageSquare, Settings } from 'lucide-react'
+import { MessageSquare, Settings, GitBranch } from 'lucide-react'
 import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar'
 import { Button } from '@/components/ui/button'
 import { useIsMobile } from '@/hooks/use-mobile'
@@ -9,20 +9,25 @@ import { useChatStore } from '@/stores/chat-store'
 import { TextPanel } from '@/components/panels/text-panel'
 import { MapPanel } from '@/components/panels/map-panel'
 import { MiroPanel } from '@/components/panels/miro-panel'
+import { QlooPanel } from '@/components/panels/qloo-panel'
 import { SettingsModal } from '@/components/settings-modal'
+import { FlowView } from '@/components/flow-view'
 import { Mosaic, MosaicWindow } from 'react-mosaic-component'
 import { useState } from 'react'
+import Image from 'next/image'
 
 // Import the required CSS for react-mosaic
 import 'react-mosaic-component/react-mosaic-component.css'
 
-type ViewId = 'chat' | 'notes' | 'map' | 'miro'
+type ViewId = 'chat' | 'notes' | 'map' | 'miro' | 'qloo'
+type ViewMode = 'chat' | 'flow'
 
 const TITLE_MAP: Record<ViewId, string> = {
   chat: 'Chat',
   notes: 'Notes',
   map: 'Map',
   miro: 'Miro',
+  qloo: 'Qloo',
 }
 
 interface ChatLayoutWithHistoryProps {
@@ -31,23 +36,29 @@ interface ChatLayoutWithHistoryProps {
 
 export function ChatLayoutWithHistory({ children }: ChatLayoutWithHistoryProps) {
   const isMobile = useIsMobile()
+  const [viewMode, setViewMode] = useState<ViewMode>('chat')
   
-  // Initial mosaic layout - chat takes 50% width, panels split the remaining 50%
+  // Initial mosaic layout - chat takes 40% width, panels split the remaining 60%
   const [mosaicValue, setMosaicValue] = useState<any>({
     direction: 'row' as const,
     first: 'chat' as ViewId,
     second: {
-      direction: 'column' as const,
-      first: 'notes' as ViewId,
-      second: {
+      direction: 'row' as const,
+      first: {
         direction: 'column' as const,
         first: 'map' as ViewId,
         second: 'miro' as ViewId,
         splitPercentage: 50,
       },
+      second: {
+        direction: 'column' as const,
+        first: 'notes' as ViewId,
+        second: 'qloo' as ViewId,
+        splitPercentage: 50,
+      },
       splitPercentage: 50,
     },
-    splitPercentage: 50,
+    splitPercentage: 40,
   })
 
   const handleMosaicChange = (value: any) => {
@@ -117,6 +128,21 @@ export function ChatLayoutWithHistory({ children }: ChatLayoutWithHistoryProps) 
       )
     }
 
+    if (id === 'qloo') {
+      return (
+        <MosaicWindow<ViewId>
+          path={path}
+          title={TITLE_MAP[id]}
+          createNode={() => 'notes'}
+          className="bg-white"
+        >
+          <div className="h-full">
+            <QlooPanel />
+          </div>
+        </MosaicWindow>
+      )
+    }
+
     return null
   }
 
@@ -135,43 +161,77 @@ export function ChatLayoutWithHistory({ children }: ChatLayoutWithHistoryProps) 
               <div className="flex items-center justify-between p-4 border-b">
                 <div className="flex items-center gap-2">
                   <SidebarTrigger />
-                  <MessageSquare className="h-5 w-5 text-primary" />
-                  <span className="font-semibold">GoFlyTo</span>
+                  <Image src="/logotype.png" alt="TasteEngine" width={128} height={128} className="h-10 w-40" />
                 </div>
                 
-                <SettingsModal>
-                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                    <Settings className="h-4 w-4" />
-                  </Button>
-                </SettingsModal>
+                <div className="flex items-center gap-2">
+                  {/* View Toggle */}
+                  <div className="flex items-center rounded-lg border p-1">
+                    <Button
+                      variant={viewMode === 'chat' ? 'default' : 'ghost'}
+                      size="sm"
+                      onClick={() => setViewMode('chat')}
+                      className="h-7 px-3 text-xs"
+                    >
+                      <MessageSquare className="h-3 w-3 mr-1" />
+                      Chat
+                    </Button>
+                    <Button
+                      variant={viewMode === 'flow' ? 'default' : 'ghost'}
+                      size="sm"
+                      onClick={() => setViewMode('flow')}
+                      className="h-7 px-3 text-xs"
+                    >
+                      <GitBranch className="h-3 w-3 mr-1" />
+                      Flow
+                    </Button>
+                  </div>
+                  
+                  <SettingsModal>
+                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                      <Settings className="h-4 w-4" />
+                    </Button>
+                  </SettingsModal>
+                </div>
               </div>
               
               {/* Main content */}
               <div className="flex-1 flex gap-4 p-4 min-h-0">
-                {/* Chat Interface */}
-                <div className="flex-1 min-w-0">
-                  <div className="w-full mx-auto h-full">
-                    {children}
-                  </div>
-                </div>
-                
-                {/* Side panels */}
-                <div className="w-80 flex-shrink-0 flex flex-col gap-4">
-                  {/* Text Panel */}
-                  <div className="flex-1 min-h-0">
-                    <TextPanel />
-                  </div>
-                  
-                  {/* Map Panel */}
-                  <div className="flex-1 min-h-0">
-                    <MapPanel />
-                  </div>
-                  
-                  {/* Miro Panel */}
-                  <div className="flex-1 min-h-0">
-                    <MiroPanel />
-                  </div>
-                </div>
+                {viewMode === 'chat' ? (
+                  <>
+                    {/* Chat Interface */}
+                    <div className="flex-1 min-w-0">
+                      <div className="w-full mx-auto h-full">
+                        {children}
+                      </div>
+                    </div>
+                    
+                    {/* Side panels */}
+                    <div className="w-80 flex-shrink-0 flex flex-col gap-4">
+                      {/* Text Panel */}
+                      <div className="flex-1 min-h-0">
+                        <TextPanel />
+                      </div>
+                      
+                      {/* Map Panel */}
+                      <div className="flex-1 min-h-0">
+                        <MapPanel />
+                      </div>
+                      
+                      {/* Miro Panel */}
+                      <div className="flex-1 min-h-0">
+                        <MiroPanel />
+                      </div>
+                      
+                      {/* Qloo Panel */}
+                      <div className="flex-1 min-h-0">
+                        <QlooPanel />
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <FlowView className="flex-1" />
+                )}
               </div>
             </div>
           </SidebarInset>
@@ -193,28 +253,59 @@ export function ChatLayoutWithHistory({ children }: ChatLayoutWithHistoryProps) 
             <div className="flex items-center justify-between p-4 border-b">
               <div className="flex items-center gap-2">
                 <SidebarTrigger />
-                <MessageSquare className="h-5 w-5 text-primary" />
-                <span className="font-semibold">GoFlyTo</span>
+                <Image src="/logotype.png" alt="TasteEngine" className="h-10 w-40" width={256} height={256} />
               </div>
               
-              <SettingsModal>
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                  <Settings className="h-4 w-4" />
-                </Button>
-              </SettingsModal>
-            </div>
-            
-            {/* Mosaic Layout */}
-            <div className="flex-1 min-h-0 p-4">
-              <div className="h-full w-full">
-                <Mosaic<ViewId>
-                  renderTile={renderTile}
-                  value={mosaicValue}
-                  onChange={handleMosaicChange}
-                  className="mosaic-blueprint-theme"
-                />
+              <div className="flex items-center gap-2">
+                {/* View Toggle */}
+                <div className="flex items-center rounded-lg border p-1">
+                  <Button
+                    variant={viewMode === 'chat' ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setViewMode('chat')}
+                    className="h-7 px-3 text-xs"
+                  >
+                    <MessageSquare className="h-3 w-3 mr-1" />
+                    Chat
+                  </Button>
+                  <Button
+                    variant={viewMode === 'flow' ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setViewMode('flow')}
+                    className="h-7 px-3 text-xs"
+                  >
+                    <GitBranch className="h-3 w-3 mr-1" />
+                    Flow
+                  </Button>
+                </div>
+                
+                <SettingsModal>
+                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                    <Settings className="h-4 w-4" />
+                  </Button>
+                </SettingsModal>
               </div>
             </div>
+            
+            {/* Content based on view mode */}
+            {viewMode === 'chat' ? (
+              /* Mosaic Layout */
+              <div className="flex-1 min-h-0 p-4">
+                <div className="h-full w-full">
+                  <Mosaic<ViewId>
+                    renderTile={renderTile}
+                    value={mosaicValue}
+                    onChange={handleMosaicChange}
+                    className="mosaic-blueprint-theme"
+                  />
+                </div>
+              </div>
+            ) : (
+              /* Flow View */
+              <div className="flex-1 min-h-0 p-4">
+                <FlowView className="h-full" />
+              </div>
+            )}
           </div>
         </SidebarInset>
       </div>
