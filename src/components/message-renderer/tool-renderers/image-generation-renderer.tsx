@@ -18,7 +18,9 @@ import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence } from 'motion/react';
-import { imageGenerationApi, ImageGenerationJob } from '@/lib/image-generation-api';
+import { ImageGenerationJob, ImageGenerationRequest } from '@/lib/image-generation-api';
+import { useImageGenerationSession } from '@/stores/image-generation-store';
+import { useChatStore } from '@/stores/chat-store';
 
 interface ImageGenerationRendererProps {
   data: any;
@@ -148,229 +150,153 @@ const ImageDisplay = ({ src, alt, onDownload }: { src: string; alt: string; onDo
 };
 
 export function ImageGenerationRenderer({ data: rawData, toolName }: ImageGenerationRendererProps) {
-  const [currentJob, setCurrentJob] = useState<ImageResult | null>(null);
-  const [isPolling, setIsPolling] = useState(false);
+  const { currentSession } = useChatStore();
+  const sessionId = currentSession?.id || null;
+  const imageGenSession = useImageGenerationSession(sessionId);
+  
+  const [currentJob, setCurrentJob] = useState<ImageGenerationJob | null>(null);
   const [jobId, setJobId] = useState<string | null>(null);
 
-  // Initialize with the data provided
-  useEffect(() => {
-    console.log('[ImageGenerationRenderer] Data received:', rawData);
-
-    const data = JSON.parse(rawData.slice(58));
-    console.log('[ImageGenerationRenderer] Parsed data:', data);
-    
-    // Check cache first for any existing job data
-    if (data?.jobId) {
-      setJobId(data.jobId);
-      const cachedJob = imageGenerationApi.getCachedJobById(data.jobId);
-      if (cachedJob) {
-        console.log('[ImageGenerationRenderer] Found cached job:', cachedJob);
-        setCurrentJob(cachedJob);
-        
-        // If cached job is completed, no need to poll
-        if (cachedJob.status === 'completed' || cachedJob.status === 'failed') {
-          console.log('[ImageGenerationRenderer] Using completed cached job');
-          return;
-        }
-      }
-    }
-
-    if (data) {
-      // Debug the condition evaluation
-      console.log('[ImageGenerationRenderer] Condition check:', {
-        hasSuccess: !!data.success,
-        success: data.success,
-        hasPrompt: !!data.prompt,
-        prompt: data.prompt,
-        hasJobId: !!data.jobId,
-        jobId: data.jobId,
-        shouldStartGeneration: data.success && data.prompt && !data.jobId,
-        dataKeys: Object.keys(data),
-        dataType: typeof data,
-        dataConstructor: data.constructor?.name
-      });
-
-      // Try to find the actual data object
-      let actualData = data;
-      if (data && typeof data === 'object' && !data.success && !data.prompt) {
-        // Check if data has any properties that contain the actual data
-        const possibleDataProps = Object.keys(data).filter(key => 
-          data[key] && typeof data[key] === 'object' && 
-          (data[key].success || data[key].prompt)
-        );
-        console.log('[ImageGenerationRenderer] Possible data properties:', possibleDataProps);
-        
-        if (possibleDataProps.length > 0) {
-          actualData = data[possibleDataProps[0]];
-          console.log('[ImageGenerationRenderer] Using nested data:', actualData);
-        }
-      }
-
-      // Check if this is a preparation response (has success/message but no jobId)
-      if (actualData.success && actualData.prompt && !actualData.jobId) {
-        console.log('[ImageGenerationRenderer] Detected preparation response, starting image generation...');
-        startImageGeneration(actualData);
-      } else if (actualData.jobId) {
-        // This is an actual job response
-        setJobId(actualData.jobId);
-        setCurrentJob(actualData);
-        
-        // If we have a jobId and the status is pending/processing, start polling
-        if (actualData.status === 'pending' || actualData.status === 'processing') {
-          console.log('[ImageGenerationRenderer] Starting polling because jobId exists and status is:', actualData.status);
-          startPolling(actualData.jobId);
-        }
-      } else {
-        // Set whatever data we have
-        setCurrentJob(actualData);
-        console.log('[ImageGenerationRenderer] Set current job data:', actualData);
-      }
+  // Parse the incoming data
+  const parsedData = React.useMemo(() => {
+    try {
+      console.log('[ImageGenerationRenderer] Raw data received:', rawData);
+      const data = JSON.parse(rawData.slice(58));
+      console.log('[ImageGenerationRenderer] Parsed data:', data);
+      return data;
+    } catch (error) {
+      console.error('[ImageGenerationRenderer] Failed to parse data:', error);
+      return null;
     }
   }, [rawData]);
 
-  // Persist current job state to sessionStorage
+  // Initialize or find existing job
   useEffect(() => {
-    if (currentJob && jobId) {
-      const key = `image_job_${jobId}`;
-      try {
-        sessionStorage.setItem(key, JSON.stringify({
-          job: currentJob,
-          timestamp: Date.now()
-        }));
-        console.log('[ImageGenerationRenderer] Persisted job to session storage:', jobId);
-      } catch (error) {
-        console.warn('[ImageGenerationRenderer] Failed to persist job to session storage:', error);
-      }
-    }
-  }, [currentJob, jobId]);
+    if (!parsedData || !sessionId) return;
 
-  // Restore job state from sessionStorage on mount
-  useEffect(() => {
-    if (jobId && !currentJob) {
-      const key = `image_job_${jobId}`;
-      try {
-        const stored = sessionStorage.getItem(key);
-        if (stored) {
-          const { job, timestamp } = JSON.parse(stored);
-          const age = Date.now() - timestamp;
-          // Only restore if less than 1 hour old
-          if (age < 60 * 60 * 1000) {
-            console.log('[ImageGenerationRenderer] Restored job from session storage:', jobId);
-            setCurrentJob(job);
-            
-            // If job is not completed and not too old, resume polling
-            if (job.status !== 'completed' && job.status !== 'failed' && age < 10 * 60 * 1000) {
-              console.log('[ImageGenerationRenderer] Resuming polling for restored job');
-              startPolling(jobId);
-            }
-          } else {
-            // Remove old data
-            sessionStorage.removeItem(key);
-          }
-        }
-      } catch (error) {
-        console.warn('[ImageGenerationRenderer] Failed to restore job from session storage:', error);
-      }
-    }
-  }, [jobId]);
+    console.log('[ImageGenerationRenderer] Processing parsed data:', parsedData);
 
-  // Cleanup old session storage entries on mount
-  useEffect(() => {
-    const cleanupOldSessions = () => {
-      try {
-        const keys = Object.keys(sessionStorage);
-        const imageJobKeys = keys.filter(key => key.startsWith('image_job_'));
-        const now = Date.now();
-        
-        imageJobKeys.forEach(key => {
-          try {
-            const stored = sessionStorage.getItem(key);
-            if (stored) {
-              const { timestamp } = JSON.parse(stored);
-              const age = now - timestamp;
-              // Remove entries older than 6 hours
-              if (age > 6 * 60 * 60 * 1000) {
-                sessionStorage.removeItem(key);
-              }
-            }
-          } catch (e) {
-            // Remove invalid entries
-            sessionStorage.removeItem(key);
-          }
-        });
-        
-        console.log('[ImageGenerationRenderer] Cleaned up old session storage entries');
-      } catch (error) {
-        console.warn('[ImageGenerationRenderer] Failed to cleanup session storage:', error);
-      }
-    };
-    
-    cleanupOldSessions();
-  }, []);
-
-  const startImageGeneration = async (imageData = rawData) => {
-    if (!imageData?.prompt) {
-      console.error('[ImageGenerationRenderer] No prompt available for image generation');
-      return;
-    }
-
-    console.log('[ImageGenerationRenderer] Starting image generation with prompt:', imageData.prompt);
-    
-    try {
-      // Convert the preparation data to ImageGenerationRequest format
-      const request = {
-        prompt: imageData.prompt,
-      };
-
-      // Start the image generation job
-      const job = await imageGenerationApi.generateImage(request);
-      console.log('[ImageGenerationRenderer] Image generation job started:', job);
-      
-      setJobId(job.jobId);
-      setCurrentJob(job);
-      
-      // Start polling for updates
-      if (job.jobId) {
-        startPolling(job.jobId);
-      }
-    } catch (error) {
-      console.error('[ImageGenerationRenderer] Failed to start image generation:', error);
-      const failedJob = {
-        prompt: imageData.prompt,
-        status: 'failed',
-        error: error instanceof Error ? error.message : 'Failed to start image generation'
-      };
-      setCurrentJob(failedJob);
-    }
-  };
-
-  const startPolling = async (jobId: string) => {
-    if (isPolling) return;
-    
-    console.log('[ImageGenerationRenderer] Starting polling for jobId:', jobId);
-    setIsPolling(true);
-    try {
-      const finalJob = await imageGenerationApi.pollJobUntilComplete(
-        jobId,
-        (job: ImageGenerationJob) => {
-          console.log('[ImageGenerationRenderer] Polling update:', job.status, job);
-          setCurrentJob(job);
-        },
-        30 // Max 30 attempts (about 5 minutes with exponential backoff)
+    // Try to find the actual data object if nested
+    let actualData = parsedData;
+    if (parsedData && typeof parsedData === 'object' && !parsedData.success && !parsedData.prompt) {
+      const possibleDataProps = Object.keys(parsedData).filter(key => 
+        parsedData[key] && typeof parsedData[key] === 'object' && 
+        (parsedData[key].success || parsedData[key].prompt)
       );
-      console.log('[ImageGenerationRenderer] Polling completed:', finalJob);
-      setCurrentJob(finalJob);
-    } catch (error) {
-      console.error('[ImageGenerationRenderer] Polling failed:', error);
-      setCurrentJob(prev => prev ? { 
-        ...prev, 
-        status: 'failed', 
-        error: error instanceof Error ? error.message : 'Polling timeout' 
-      } : null);
-    } finally {
-      setIsPolling(false);
+      
+      if (possibleDataProps.length > 0) {
+        actualData = parsedData[possibleDataProps[0]];
+        console.log('[ImageGenerationRenderer] Using nested data:', actualData);
+      }
     }
-  };
+
+    // If we have a jobId, try to find existing job
+    if (actualData.jobId) {
+      setJobId(actualData.jobId);
+      const existingJob = imageGenSession.getJob(actualData.jobId);
+      
+      if (existingJob) {
+        console.log('[ImageGenerationRenderer] Found existing job:', existingJob);
+        setCurrentJob(existingJob);
+        
+        // Resume polling if job is not finished and not already being polled
+        if ((existingJob.status === 'pending' || existingJob.status === 'processing') && 
+            !imageGenSession.isPolling(actualData.jobId)) {
+          console.log('[ImageGenerationRenderer] Resuming polling for job:', actualData.jobId);
+          imageGenSession.startPolling(actualData.jobId);
+        }
+        return;
+      } else {
+        // Create job from the data we have
+        const jobFromData: ImageGenerationJob = {
+          id: actualData.jobId,
+          jobId: actualData.jobId,
+          status: actualData.status || 'pending',
+          prompt: actualData.prompt,
+          model: actualData.model,
+          size: actualData.size,
+          quality: actualData.quality,
+          format: actualData.format,
+          background: actualData.background,
+          result: actualData.result,
+          partialImages: actualData.partialImages,
+          revisedPrompt: actualData.revisedPrompt,
+          error: actualData.error,
+          createdAt: actualData.createdAt || new Date().toISOString(),
+          completedAt: actualData.completedAt,
+          timestamp: actualData.timestamp || new Date().toISOString()
+        };
+        
+        console.log('[ImageGenerationRenderer] Creating job from data:', jobFromData);
+        imageGenSession.updateJob(actualData.jobId, jobFromData);
+        setCurrentJob(jobFromData);
+        
+        // Start polling if not finished
+        if (jobFromData.status === 'pending' || jobFromData.status === 'processing') {
+          imageGenSession.startPolling(actualData.jobId);
+        }
+      }
+    } else if (actualData.success && actualData.prompt) {
+      // This is a preparation response - start new generation
+      console.log('[ImageGenerationRenderer] Starting new image generation with prompt:', actualData.prompt);
+      
+      const request: ImageGenerationRequest = {
+        prompt: actualData.prompt,
+        model: actualData.model,
+        size: actualData.size,
+        quality: actualData.quality,
+        format: actualData.format,
+        background: actualData.background,
+      };
+      
+      imageGenSession.startGeneration(request)
+        .then(job => {
+          console.log('[ImageGenerationRenderer] New generation started:', job);
+          setJobId(job.jobId);
+          setCurrentJob(job);
+        })
+        .catch(error => {
+          console.error('[ImageGenerationRenderer] Failed to start generation:', error);
+          setCurrentJob({
+            id: 'error',
+            jobId: 'error',
+            status: 'failed',
+            prompt: actualData.prompt,
+            error: error instanceof Error ? error.message : 'Failed to start generation',
+            createdAt: new Date().toISOString(),
+            timestamp: new Date().toISOString()
+          });
+        });
+    } else {
+      // Set whatever data we have as a basic job
+      setCurrentJob({
+        id: 'unknown',
+        jobId: 'unknown',
+        status: actualData.status || 'pending',
+        prompt: actualData.prompt || 'Unknown prompt',
+        result: actualData.result,
+        error: actualData.error,
+        createdAt: new Date().toISOString(),
+        timestamp: new Date().toISOString()
+      });
+    }
+  }, [parsedData, sessionId, imageGenSession]);
+
+  // Subscribe to job updates
+  useEffect(() => {
+    if (!jobId || !sessionId) return;
+
+    // Poll for updates every 2 seconds if job is not finished
+    const interval = setInterval(() => {
+      const latestJob = imageGenSession.getJob(jobId);
+      if (latestJob && latestJob !== currentJob) {
+        console.log('[ImageGenerationRenderer] Job updated:', latestJob);
+        setCurrentJob(latestJob);
+      }
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [jobId, sessionId, currentJob, imageGenSession]);
 
   const downloadImage = (imageData: string, filename: string) => {
     try {
@@ -405,7 +331,7 @@ export function ImageGenerationRenderer({ data: rawData, toolName }: ImageGenera
       <Card className="p-3 bg-gray-50 border-gray-200">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <ImageIcon className="w-4 h-4" />
-          No image generation data
+          Loading image generation...
         </div>
       </Card>
     );
@@ -413,7 +339,8 @@ export function ImageGenerationRenderer({ data: rawData, toolName }: ImageGenera
 
   const hasError = currentJob.status === 'failed' || currentJob.error;
   const isComplete = currentJob.status === 'completed';
-  const hasResult = currentJob.result || currentJob.imageUrl;
+  const hasResult = currentJob.result || (currentJob as any).imageUrl;
+  const isPolling = jobId ? imageGenSession.isPolling(jobId) : false;
 
   return (
     <Card className={`p-4 ${hasError ? 'bg-red-50 border-red-200' : 'bg-blue-50 border-blue-200'}`}>
@@ -511,10 +438,10 @@ export function ImageGenerationRenderer({ data: rawData, toolName }: ImageGenera
               <span className="text-xs font-medium text-green-700">Generated Image</span>
             </div>
             <ImageDisplay
-              src={currentJob.imageUrl || (currentJob.result?.startsWith('data:') ? currentJob.result : `data:image/png;base64,${currentJob.result}`)}
+              src={(currentJob as any).imageUrl || (currentJob.result?.startsWith('data:') ? currentJob.result : `data:image/png;base64,${currentJob.result}`)}
               alt="Generated image"
               onDownload={() => {
-                const imageData = currentJob.imageUrl || currentJob.result;
+                const imageData = (currentJob as any).imageUrl || currentJob.result;
                 if (imageData) {
                   downloadImage(imageData, 'generated-image.png');
                 }
@@ -535,7 +462,7 @@ export function ImageGenerationRenderer({ data: rawData, toolName }: ImageGenera
         )}
 
         {/* Job info */}
-        {currentJob.jobId && (
+        {currentJob.jobId && currentJob.jobId !== 'unknown' && currentJob.jobId !== 'error' && (
           <div className="text-xs text-gray-500 font-mono">
             Job ID: {currentJob.jobId}
           </div>

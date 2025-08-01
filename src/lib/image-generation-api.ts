@@ -49,70 +49,15 @@ export class ImageGenerationApiError extends Error {
 
 export class ImageGenerationApiService {
   private baseUrl: string
-  private cache: Map<string, ImageGenerationJob> = new Map()
-  private readonly CACHE_KEY = 'image_generation_cache'
-  private readonly CACHE_EXPIRY_HOURS = 24
 
   constructor() {
     // Use the backend URL configuration that's already set up
     const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3003/ai'
     // Extract base URL (remove /ai suffix if present)
     this.baseUrl = backendUrl.replace('/ai', '') || 'http://localhost:3003'
-    
-    // Load cache from localStorage on initialization
-    this.loadCacheFromStorage()
-    
-    // Clean up expired jobs periodically
-    this.clearExpiredJobs()
   }
 
-  private loadCacheFromStorage() {
-    try {
-      const cached = localStorage.getItem(this.CACHE_KEY)
-      if (cached) {
-        const { data, timestamp } = JSON.parse(cached)
-        const now = Date.now()
-        const expiryTime = this.CACHE_EXPIRY_HOURS * 60 * 60 * 1000
-        
-        // Only load if cache is not expired
-        if (now - timestamp < expiryTime) {
-          Object.entries(data).forEach(([jobId, job]) => {
-            this.cache.set(jobId, job as ImageGenerationJob)
-          })
-          console.log(`[ImageGenerationApi] Loaded ${this.cache.size} jobs from cache`)
-        } else {
-          // Clear expired cache
-          localStorage.removeItem(this.CACHE_KEY)
-          console.log('[ImageGenerationApi] Cleared expired cache')
-        }
-      }
-    } catch (error) {
-      console.warn('[ImageGenerationApi] Failed to load cache from storage:', error)
-    }
-  }
 
-  private saveCacheToStorage() {
-    try {
-      const data = Object.fromEntries(this.cache.entries())
-      const cacheData = {
-        data,
-        timestamp: Date.now()
-      }
-      localStorage.setItem(this.CACHE_KEY, JSON.stringify(cacheData))
-      console.log(`[ImageGenerationApi] Saved ${this.cache.size} jobs to cache`)
-    } catch (error) {
-      console.warn('[ImageGenerationApi] Failed to save cache to storage:', error)
-    }
-  }
-
-  private getCachedJob(jobId: string): ImageGenerationJob | null {
-    return this.cache.get(jobId) || null
-  }
-
-  private setCachedJob(job: ImageGenerationJob) {
-    this.cache.set(job.jobId, job)
-    this.saveCacheToStorage()
-  }
 
   /**
    * Start a new image generation job
@@ -176,9 +121,6 @@ export class ImageGenerationApiService {
         timestamp: data.timestamp
       }
       
-      // Cache the initial job
-      this.setCachedJob(job)
-      
       return job
     } catch (error) {
       if (error instanceof ImageGenerationApiError) {
@@ -217,12 +159,7 @@ export class ImageGenerationApiService {
       throw new ImageGenerationApiError('Job ID is required')
     }
 
-    // Check cache first - if we have a completed job, return it immediately
-    const cachedJob = this.getCachedJob(jobId)
-    if (cachedJob && cachedJob.status === 'completed' && cachedJob.result) {
-      console.log('[ImageGenerationApi] Returning completed job from cache:', jobId);
-      return cachedJob
-    }
+
 
     if (!this.baseUrl) {
       throw new ImageGenerationApiError('AI API endpoint not configured')
@@ -244,11 +181,6 @@ export class ImageGenerationApiService {
 
       if (!response.ok) {
         if (response.status === 404) {
-          // If not found on server but we have it cached, return cached version
-          if (cachedJob) {
-            console.log('[ImageGenerationApi] Job not found on server, returning cached version');
-            return cachedJob
-          }
           throw new ImageGenerationApiError(
             'Image generation job not found',
             404,
@@ -283,9 +215,6 @@ export class ImageGenerationApiService {
         completedAt: data.completedAt,
         timestamp: data.createdAt
       }
-      
-      // Cache the updated job data
-      this.setCachedJob(job)
       
       return job
     } catch (error) {
@@ -420,59 +349,7 @@ export class ImageGenerationApiService {
     )
   }
 
-  /**
-   * Get all cached jobs
-   */
-  getCachedJobs(): ImageGenerationJob[] {
-    return Array.from(this.cache.values())
-  }
 
-  /**
-   * Get a specific cached job by ID
-   */
-  getCachedJobById(jobId: string): ImageGenerationJob | null {
-    return this.getCachedJob(jobId)
-  }
-
-  /**
-   * Clear all cached jobs
-   */
-  clearCache(): void {
-    this.cache.clear()
-    try {
-      localStorage.removeItem(this.CACHE_KEY)
-      console.log('[ImageGenerationApi] Cache cleared')
-    } catch (error) {
-      console.warn('[ImageGenerationApi] Failed to clear cache from storage:', error)
-    }
-  }
-
-  /**
-   * Clear expired jobs from cache
-   */
-  clearExpiredJobs(): void {
-    const now = Date.now()
-    const expiredJobIds: string[] = []
-    
-    this.cache.forEach((job, jobId) => {
-      // Remove jobs older than 24 hours that are completed or failed
-      const jobAge = now - new Date(job.createdAt).getTime()
-      const maxAge = this.CACHE_EXPIRY_HOURS * 60 * 60 * 1000
-      
-      if (jobAge > maxAge && (job.status === 'completed' || job.status === 'failed')) {
-        expiredJobIds.push(jobId)
-      }
-    })
-    
-    expiredJobIds.forEach(jobId => {
-      this.cache.delete(jobId)
-    })
-    
-    if (expiredJobIds.length > 0) {
-      this.saveCacheToStorage()
-      console.log(`[ImageGenerationApi] Cleared ${expiredJobIds.length} expired jobs`)
-    }
-  }
 }
 
 // Create singleton instance

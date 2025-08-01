@@ -18,7 +18,9 @@ import {
   AlertCircle,
   CheckCircle2
 } from 'lucide-react'
-import { imageGenerationApi, ImageGenerationJob } from '@/lib/image-generation-api'
+import { ImageGenerationJob } from '@/lib/image-generation-api'
+import { useImageGenerationSession } from '@/stores/image-generation-store'
+import { useChatStore } from '@/stores/chat-store'
 
 interface ImageGenerationResult {
   success: boolean
@@ -55,6 +57,10 @@ function parseImageGeneration(content: string): { result: ImageGenerationResult 
 
 function ImageGenerationCard({ result, toolId }: { result: ImageGenerationResult; toolId: string }) {
   const [expanded, setExpanded] = useState(false)
+  const { currentSession } = useChatStore()
+  const sessionId = currentSession?.id || null
+  const imageGenSession = useImageGenerationSession(sessionId)
+  
   const [imageJob, setImageJob] = useState<ImageGenerationJob | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -96,59 +102,89 @@ function ImageGenerationCard({ result, toolId }: { result: ImageGenerationResult
     }
   }
 
-  // Fetch the generated image
+  // Fetch the generated image using the new store
   useEffect(() => {
-    if (!toolId) return
+    if (!toolId || !sessionId) {
+      setLoading(false)
+      return
+    }
 
-    // Check cache first
-    const cachedJob = imageGenerationApi.getCachedJobById(toolId)
-    if (cachedJob) {
-      console.log('[ImageGenerationDisplay] Found cached job:', cachedJob)
-      setImageJob(cachedJob)
+    console.log('[ImageGenerationDisplay] Looking for job with ID:', toolId, 'in session:', sessionId)
+
+    // Check if we already have this job in the store
+    const existingJob = imageGenSession.getJob(toolId)
+    if (existingJob) {
+      console.log('[ImageGenerationDisplay] Found existing job:', existingJob)
+      setImageJob(existingJob)
       
-      if (cachedJob.status === 'completed') {
+      if (existingJob.status === 'completed') {
         setLoading(false)
         return
-      } else if (cachedJob.status === 'failed') {
-        setError(cachedJob.error || 'Image generation failed')
+      } else if (existingJob.status === 'failed') {
+        setError(existingJob.error || 'Image generation failed')
         setLoading(false)
         return
       }
     }
 
-    const fetchImage = async () => {
-      try {
-        setLoading(true)
-        setError(null)
+    // If this is a new generation request, start it
+    if (result.success && result.prompt && !existingJob) {
+      console.log('[ImageGenerationDisplay] Starting new generation for prompt:', result.prompt)
+      
+      const request = {
+        prompt: result.prompt,
+        size: result.size,
+        quality: result.quality,
+      }
+      
+      setLoading(true)
+      setError(null)
+      
+      imageGenSession.startGeneration(request)
+        .then(job => {
+          console.log('[ImageGenerationDisplay] Generation started:', job)
+          setImageJob(job)
+          // The store will automatically handle polling
+        })
+        .catch(err => {
+          console.error('[ImageGenerationDisplay] Failed to start generation:', err)
+          setError(err.message || 'Failed to start image generation')
+          setLoading(false)
+        })
+    } else if (!existingJob) {
+      // No existing job and not a new generation request
+      setLoading(false)
+      setError('Image generation data not found')
+    }
+  }, [toolId, sessionId, result, imageGenSession])
+
+  // Subscribe to job updates
+  useEffect(() => {
+    if (!toolId || !sessionId) return
+
+    const interval = setInterval(() => {
+      const latestJob = imageGenSession.getJob(toolId)
+      if (latestJob && latestJob !== imageJob) {
+        console.log('[ImageGenerationDisplay] Job updated:', latestJob)
+        setImageJob(latestJob)
         
-        // Poll for the image until it's ready
-        const job = await imageGenerationApi.pollJobUntilComplete(
-          toolId,
-          (progressJob) => {
-            setImageJob(progressJob)
-          }
-        )
-        
-        setImageJob(job)
-        if (job.status === 'failed') {
-          setError(job.error || 'Image generation failed')
+        if (latestJob.status === 'completed') {
+          setLoading(false)
+          setError(null)
+        } else if (latestJob.status === 'failed') {
+          setError(latestJob.error || 'Image generation failed')
+          setLoading(false)
         }
-      } catch (err: any) {
-        console.error('Failed to fetch generated image:', err)
-        setError(err.message || 'Failed to fetch image')
-      } finally {
-        setLoading(false)
       }
-    }
+    }, 2000) // Check every 2 seconds
 
-    // Only fetch if we don't have a cached completed job
-    if (!cachedJob || (cachedJob.status !== 'completed' && cachedJob.status !== 'failed')) {
-      fetchImage()
-    }
-  }, [toolId])
+    return () => clearInterval(interval)
+  }, [toolId, sessionId, imageJob, imageGenSession])
 
   const getStatusIcon = () => {
-    if (loading) return <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
+    if (loading && (!imageJob || imageJob.status === 'pending' || imageJob.status === 'processing')) {
+      return <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
+    }
     if (error) return <AlertCircle className="w-4 h-4 text-red-500" />
     if (imageJob?.status === 'completed') return <CheckCircle2 className="w-4 h-4 text-green-500" />
     if (imageJob?.status === 'failed') return <AlertCircle className="w-4 h-4 text-red-500" />
@@ -156,13 +192,17 @@ function ImageGenerationCard({ result, toolId }: { result: ImageGenerationResult
   }
 
   const getStatusText = () => {
-    if (loading) return 'Generating...'
+    if (loading && (!imageJob || imageJob.status === 'pending' || imageJob.status === 'processing')) {
+      return 'Generating...'
+    }
     if (error) return 'Error'
     if (imageJob?.status === 'completed') return 'Generated'
     if (imageJob?.status === 'failed') return 'Failed'
     if (imageJob?.status === 'processing') return 'Processing'
     return 'Pending'
   }
+
+  const isPolling = toolId ? imageGenSession.isPolling(toolId) : false
 
   return (
     <Card className="hover:shadow-xl transition-all duration-300 overflow-hidden group border-l-4 border-l-orange-500">
@@ -180,9 +220,15 @@ function ImageGenerationCard({ result, toolId }: { result: ImageGenerationResult
                     {getStatusIcon()}
                     {getStatusText()}
                   </Badge>
+                  {isPolling && (
+                    <Badge variant="outline" className="text-xs flex items-center gap-1">
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      Updating...
+                    </Badge>
+                  )}
                 </div>
                 <div className="text-sm text-gray-500 mt-1">
-                  {result.style || 'Default Style'} • {result.size || 'Auto Size'} • {result.quality || 'Auto Quality'}
+                  {result.style || imageJob?.model || 'Default Style'} • {result.size || imageJob?.size || 'Auto Size'} • {result.quality || imageJob?.quality || 'Auto Quality'}
                 </div>
               </div>
             </CardTitle>
@@ -230,16 +276,19 @@ function ImageGenerationCard({ result, toolId }: { result: ImageGenerationResult
       {(imageJob?.result || loading || error) && (
         <div className="px-6 pb-4">
           <div className="aspect-square w-full max-w-md mx-auto rounded-lg overflow-hidden bg-gray-100 border-2 border-dashed border-gray-300">
-            {loading && (
+            {loading && !imageJob?.result && (
               <div className="w-full h-full flex items-center justify-center">
                 <div className="text-center">
                   <Loader2 className="w-8 h-8 animate-spin text-blue-500 mx-auto mb-2" />
                   <p className="text-sm text-gray-500">Generating image...</p>
+                  {imageJob?.status && (
+                    <p className="text-xs text-gray-400 mt-1">Status: {imageJob.status}</p>
+                  )}
                 </div>
               </div>
             )}
             
-            {error && (
+            {error && !imageJob?.result && (
               <div className="w-full h-full flex items-center justify-center">
                 <div className="text-center">
                   <AlertCircle className="w-8 h-8 text-red-500 mx-auto mb-2" />
@@ -285,15 +334,15 @@ function ImageGenerationCard({ result, toolId }: { result: ImageGenerationResult
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <span className="text-gray-500">Style:</span>
-                  <div className="font-medium capitalize">{result.style || 'Default'}</div>
+                  <div className="font-medium capitalize">{result.style || imageJob?.model || 'Default'}</div>
                 </div>
                 <div>
                   <span className="text-gray-500">Size:</span>
-                  <div className="font-medium">{result.size || 'Auto'}</div>
+                  <div className="font-medium">{result.size || imageJob?.size || 'Auto'}</div>
                 </div>
                 <div>
                   <span className="text-gray-500">Quality:</span>
-                  <div className="font-medium capitalize">{result.quality || 'Auto'}</div>
+                  <div className="font-medium capitalize">{result.quality || imageJob?.quality || 'Auto'}</div>
                 </div>
                 <div>
                   <span className="text-gray-500">Aspect Ratio:</span>
@@ -336,6 +385,33 @@ function ImageGenerationCard({ result, toolId }: { result: ImageGenerationResult
                     </div>
                   )}
                 </div>
+                
+                {/* Partial Images */}
+                {imageJob.partialImages && imageJob.partialImages.length > 0 && (
+                  <div className="mt-4">
+                    <h5 className="font-medium text-sm mb-2 flex items-center gap-1">
+                      <Eye className="w-4 h-4 text-orange-500" />
+                      Partial Images ({imageJob.partialImages.length})
+                    </h5>
+                    <div className="grid grid-cols-3 gap-2">
+                      {imageJob.partialImages.map((partialImage, index) => (
+                        <div key={index} className="relative aspect-square">
+                          <img
+                            src={partialImage.startsWith('data:') ? partialImage : `data:image/png;base64,${partialImage}`}
+                            alt={`Partial ${index + 1}`}
+                            className="w-full h-full object-cover rounded border"
+                          />
+                          <Badge 
+                            variant="secondary" 
+                            className="absolute top-1 left-1 text-xs bg-white/90"
+                          >
+                            {index + 1}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -343,6 +419,12 @@ function ImageGenerationCard({ result, toolId }: { result: ImageGenerationResult
             <div className="pt-2 border-t">
               <div className="text-xs text-gray-500">
                 Tool ID: <code className="bg-gray-100 px-1 rounded">{toolId}</code>
+                {sessionId && (
+                  <>
+                    {' • '}
+                    Session: <code className="bg-gray-100 px-1 rounded">{sessionId.slice(0, 8)}</code>
+                  </>
+                )}
               </div>
             </div>
           </div>

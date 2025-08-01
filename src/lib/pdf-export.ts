@@ -1,6 +1,31 @@
 import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
 
+// Import Geist fonts
+import '@fontsource/geist-sans/400.css'
+import '@fontsource/geist-sans/500.css'
+import '@fontsource/geist-sans/600.css'
+import '@fontsource/geist-sans/700.css'
+import '@fontsource/geist-mono/400.css'
+import '@fontsource/geist-mono/500.css'
+
+// Font loading utility
+async function ensureFontsLoaded(): Promise<void> {
+  if (typeof document !== 'undefined' && 'fonts' in document) {
+    try {
+      await document.fonts.load('400 16px "Geist Sans"')
+      await document.fonts.load('500 16px "Geist Sans"')
+      await document.fonts.load('600 16px "Geist Sans"')
+      await document.fonts.load('700 16px "Geist Sans"')
+      await document.fonts.load('400 16px "Geist Mono"')
+      await document.fonts.load('500 16px "Geist Mono"')
+      console.log('[PDF Export] Professional fonts loaded successfully')
+    } catch (error) {
+      console.warn('[PDF Export] Font loading failed, falling back to system fonts:', error)
+    }
+  }
+}
+
 interface ExportOptions {
   title: string
   content: string
@@ -197,7 +222,7 @@ async function generateChart(type: 'doughnut' | 'bar' | 'line', data: any, optio
       
       // Professional legend
       ctx.fillStyle = '#374151'
-      ctx.font = '12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+      ctx.font = '12px "Geist Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
       ctx.textAlign = 'left'
       
       const legendX = 20
@@ -236,7 +261,7 @@ async function generateChart(type: 'doughnut' | 'bar' | 'line', data: any, optio
         
         // Add value label on top of bar
         ctx.fillStyle = '#374151'
-        ctx.font = '11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+        ctx.font = '11px "Geist Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
         ctx.textAlign = 'center'
         ctx.fillText(value.toString(), x + barWidth / 2, y - 8)
       })
@@ -259,7 +284,7 @@ async function generateChart(type: 'doughnut' | 'bar' | 'line', data: any, optio
       
       // X-axis labels
       ctx.fillStyle = '#6b7280'
-      ctx.font = '10px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+      ctx.font = '10px "Geist Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
       ctx.textAlign = 'center'
       
       data.labels.forEach((label: string, index: number) => {
@@ -281,6 +306,9 @@ async function generateChart(type: 'doughnut' | 'bar' | 'line', data: any, optio
 
 export async function exportNotesToPDF(options: ExportOptions): Promise<void> {
   const { title, content, sessionId, chatTitle, chatMessages = [], timestamp = new Date() } = options
+  
+  // Ensure professional fonts are loaded
+  await ensureFontsLoaded()
   
   // Extract session analytics
   const analytics = extractSessionData(chatMessages)
@@ -307,7 +335,7 @@ export async function exportNotesToPDF(options: ExportOptions): Promise<void> {
   container.style.top = '0'
   container.style.width = '210mm'
   container.style.backgroundColor = 'white'
-  container.style.fontFamily = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
+  container.style.fontFamily = '"Geist Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
   container.style.fontSize = '11px'
   container.style.lineHeight = '1.5'
   container.style.color = '#374151'
@@ -500,7 +528,7 @@ export async function exportNotesToPDF(options: ExportOptions): Promise<void> {
             <div style="font-weight: 600; color: #1e293b; margin-bottom: 2px;">TASTEENGINE BUSINESS INTELLIGENCE</div>
             <div>This document contains confidential and proprietary information</div>
           </div>
-          <div style="text-align: right; font-family: monospace;">
+          <div style="text-align: right; font-family: 'Geist Mono', 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;">
             <div>Generated: ${timestamp.toISOString().split('T')[0]} ${timestamp.toTimeString().split(' ')[0]}</div>
             <div style="margin-top: 2px;">Report ID: ${sessionId ? sessionId.slice(0, 8).toUpperCase() : 'SYSTEM'}-${timestamp.getTime().toString().slice(-6)}</div>
           </div>
