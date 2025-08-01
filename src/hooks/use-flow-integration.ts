@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 import { flowManager } from '@/components/flow-view/flow-manager'
-import { useChatStore } from '@/stores/campaign-store'
+import { useChatStore } from '@/stores/chat-store'
 
 export function useFlowIntegration() {
   const { currentSession } = useChatStore()

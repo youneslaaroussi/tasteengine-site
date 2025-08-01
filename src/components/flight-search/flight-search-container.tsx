@@ -2,7 +2,6 @@
 
 import React from 'react'
 import { FlightSearchProvider } from '@/contexts/flight-search-provider'
-import { FlightListChat } from './flight-list-campaign'
 import { FlightSearchStatus } from './flight-search-status'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { cn } from '@/lib/utils'
@@ -41,7 +40,6 @@ export function FlightSearchContainer({
 
 // Export individual components for direct use
 export { FlightSearchProvider } from '@/contexts/flight-search-provider'
-export { FlightListChat } from './flight-list-campaign'
 export { FlightCard } from './flight-card-new'
 export { FlightSearchControls } from './flight-search-controls'
 export { FlightSearchStatus } from './flight-search-status'

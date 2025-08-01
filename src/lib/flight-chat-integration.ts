@@ -1,4 +1,4 @@
-import { ChatMessage } from '@/types/campaign'
+import { ChatMessage } from '@/types/chat'
 import { BookingFlightOption } from '@/types/flights'
 
 /**

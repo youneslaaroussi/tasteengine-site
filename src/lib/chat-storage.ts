@@ -1,5 +1,5 @@
 import { format } from 'date-fns'
-import { ChatSession } from '@/stores/campaign-store'
+import { ChatSession } from '@/stores/chat-store'
 
 interface ExportData {
   version: string

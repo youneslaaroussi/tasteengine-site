@@ -203,7 +203,7 @@ export function ImageGenerationRenderer({ data: rawData, toolName }: ImageGenera
         if ((existingJob.status === 'pending' || existingJob.status === 'processing') && 
             !imageGenSession.isPolling(actualData.jobId)) {
           console.log('[ImageGenerationRenderer] Resuming polling for job:', actualData.jobId);
-          imageGenSession.startPolling(actualData.jobId);
+          imageGenSession?.startPolling?.call(imageGenSession, actualData.jobId);
         }
         return;
       } else {
@@ -228,12 +228,12 @@ export function ImageGenerationRenderer({ data: rawData, toolName }: ImageGenera
         };
         
         console.log('[ImageGenerationRenderer] Creating job from data:', jobFromData);
-        imageGenSession.updateJob(actualData.jobId, jobFromData);
+        imageGenSession?.updateJob?.call(imageGenSession, actualData.jobId, jobFromData);
         setCurrentJob(jobFromData);
         
         // Start polling if not finished
         if (jobFromData.status === 'pending' || jobFromData.status === 'processing') {
-          imageGenSession.startPolling(actualData.jobId);
+          imageGenSession?.startPolling?.call(imageGenSession, actualData.jobId);
         }
       }
     } else if (actualData.success && actualData.prompt) {

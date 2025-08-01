@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
 import { persist } from 'zustand/middleware'
-import { ChatMessage } from '@/types/campaign'
+import { ChatMessage } from '@/types/chat'
 import { nanoid } from 'nanoid'
 
 // Simplified serializable types for flow state

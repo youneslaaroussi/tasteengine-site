@@ -1,5 +1,3 @@
-import { useChatStore } from '@/stores/campaign-store'
-
 // Global registry of panel types and their stores
 const panelRegistry = new Map<string, {
   storeName: string
