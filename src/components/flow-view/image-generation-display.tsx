@@ -18,7 +18,7 @@ import {
   AlertCircle,
   CheckCircle2
 } from 'lucide-react'
-import { ImageGenerationJob } from '@/lib/image-generation-api'
+import { ImageGenerationJob, ImageGenerationRequest } from '@/lib/image-generation-api'
 import { useImageGenerationSession } from '@/stores/image-generation-store'
 import { useChatStore } from '@/stores/chat-store'
 
@@ -131,10 +131,8 @@ function ImageGenerationCard({ result, toolId }: { result: ImageGenerationResult
     if (result.success && result.prompt && !existingJob) {
       console.log('[ImageGenerationDisplay] Starting new generation for prompt:', result.prompt)
       
-      const request = {
+      const request: ImageGenerationRequest = {
         prompt: result.prompt,
-        size: result.size,
-        quality: result.quality,
       }
       
       setLoading(true)
@@ -156,7 +154,7 @@ function ImageGenerationCard({ result, toolId }: { result: ImageGenerationResult
       setLoading(false)
       setError('Image generation data not found')
     }
-  }, [toolId, sessionId, result, imageGenSession])
+  }, [toolId, sessionId, result.success, result.prompt, result.size, result.quality])
 
   // Subscribe to job updates
   useEffect(() => {

@@ -280,7 +280,7 @@ export function ImageGenerationRenderer({ data: rawData, toolName }: ImageGenera
         timestamp: new Date().toISOString()
       });
     }
-  }, [parsedData, sessionId, imageGenSession]);
+  }, [parsedData, sessionId]);
 
   // Subscribe to job updates
   useEffect(() => {

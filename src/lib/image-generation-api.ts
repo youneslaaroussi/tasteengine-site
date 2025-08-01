@@ -71,14 +71,16 @@ export class ImageGenerationApiService {
       throw new ImageGenerationApiError('AI API endpoint not configured')
     }
 
-    try {
+          try {
       const url = `${this.baseUrl}/image/generate`
       const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(request),
+        body: JSON.stringify({
+          prompt: request.prompt,
+          }),
         signal: AbortSignal.timeout(10000), // 10 second timeout for job creation
       })
 
