@@ -20,7 +20,7 @@ import {
   Image
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { ToolCallContent } from '@/types/chat';
+import { ToolCallContent } from '@/types/campaign';
 import { FlightResults } from '@/components/tool-result-handler';
 import { ToolResultRenderer } from './tool-renderers';
 

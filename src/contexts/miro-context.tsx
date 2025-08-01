@@ -52,9 +52,10 @@ export function MiroProvider({ children }: MiroProviderProps) {
 
   const signIn = () => {
     const clientId = process.env.NEXT_PUBLIC_MIRO_CLIENT_ID
-    const redirectUri = `${window.location.origin}/api/miro/callback`
+    const redirectUri = process.env.NEXT_PUBLIC_MIRO_REDIRECT_URI || `${window.location.origin}/api/miro/callback`
     const authUrl = `https://miro.com/oauth/authorize?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=boards:read%20boards:write`
     
+    console.log('[MIRO] Initiating OAuth with redirect URI:', redirectUri)
     window.location.href = authUrl
   }
 

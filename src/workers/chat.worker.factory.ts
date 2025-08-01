@@ -1,7 +1,7 @@
 import * as Comlink from 'comlink';
 
 function createChatWorker() {
-  console.log('[FACTORY] Creating new chat worker');
+  console.log('[FACTORY] Creating new campaign worker');
   const worker = new Worker(new URL('./chat.worker.ts', import.meta.url));
   console.log('[FACTORY] Worker created:', worker);
   const wrapped = Comlink.wrap<import('./chat.worker').ChatWorker>(worker);

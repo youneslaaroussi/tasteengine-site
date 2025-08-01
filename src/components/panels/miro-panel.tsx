@@ -123,7 +123,7 @@ export function MiroPanel() {
           console.log('[MIRO_DEBUG] getStore called, returning:', !!store);
           return store;
         },
-        'Interactive Miro board with individual elements for the current chat conversation'
+        'Interactive Miro board with individual elements for the current campaign conversation'
       )
       console.log('[MIRO_DEBUG] Panel registration completed');
     }
@@ -203,7 +203,7 @@ export function MiroPanel() {
     
     try {
       // Create a new board for this session if needed
-      const boardName = `Chat Session: ${chatSession.id.slice(0, 8)}`
+      const boardName = `Campaign Session: ${chatSession.id.slice(0, 8)}`
       const response = await fetch('/api/miro/boards', {
         method: 'POST',
         headers: {
@@ -211,7 +211,7 @@ export function MiroPanel() {
         },
         body: JSON.stringify({
           name: boardName,
-          description: `Miro board for chat session ${chatSession.id}`,
+          description: `Miro board for campaign session ${chatSession.id}`,
         }),
       })
       
@@ -403,7 +403,7 @@ export function MiroPanel() {
   if (!chatSession) {
     return (
       <div className="h-full flex items-center justify-center text-gray-500">
-        Start a chat to access Miro board
+        Start a campaign to access Miro board
       </div>
     )
   }
@@ -414,7 +414,7 @@ export function MiroPanel() {
         <LayoutGrid className="h-12 w-12 text-gray-400 mb-4" />
         <h3 className="text-lg font-medium text-gray-900 mb-2">Connect to Miro</h3>
         <p className="text-sm text-gray-500 mb-4">
-          Connect your Miro account to create and manage a board for this chat.
+          Connect your Miro account to create and manage a board for this campaign.
         </p>
         <Button onClick={signIn} className="mb-2">
           <ExternalLink className="h-4 w-4 mr-2" />
@@ -489,7 +489,7 @@ export function MiroPanel() {
           <div className="flex flex-col items-center justify-center h-full p-4 text-center">
             <LayoutGrid className="h-10 w-10 text-gray-400 mb-3" />
             <p className="text-sm text-gray-500 mb-3">
-              No board found for this chat session.
+              No board found for this campaign session.
             </p>
             <Button onClick={initializeBoard} disabled={isLoading} size="sm">
               Create Board

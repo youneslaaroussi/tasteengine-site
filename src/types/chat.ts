@@ -1,6 +1,13 @@
 import { BookingFlightOption } from "./flights";
 import { MemoryDto } from "./memory";
 
+export interface DocumentAttachment {
+  name: string
+  type: string // 'pdf' | 'doc' | 'docx'
+  size: number
+  data: string // Base64 encoded file data (like images)
+}
+
 export interface ChatMessage {
   id: string
   role: 'user' | 'assistant' | 'system' | 'data'
@@ -10,6 +17,7 @@ export interface ChatMessage {
   searchId?: string
   memories?: MemoryDto[]
   images?: string[] // Base64 encoded images
+  documents?: DocumentAttachment[] // Parsed document attachments
 }
 
 export interface ChatSession {

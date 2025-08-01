@@ -161,7 +161,7 @@ export function ChatHistorySheet({ children }: ChatHistorySheetProps) {
       </SheetTrigger>
       <SheetContent side="left" className="w-80 p-0">
         <SheetHeader className="p-4 pb-0">
-          <SheetTitle className="text-left">Chat History</SheetTitle>
+          <SheetTitle className="text-left">Campaign History</SheetTitle>
         </SheetHeader>
         
         <div className="flex flex-col h-full">
@@ -292,7 +292,7 @@ export function ChatHistorySheet({ children }: ChatHistorySheetProps) {
               {sessions.length === 0 && (
                 <div className="text-center py-8 text-muted-foreground">
                   <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">No chat history yet</p>
+                  <p className="text-sm">No campaign history yet</p>
                   <p className="text-xs">Start a new conversation to see it here</p>
                 </div>
               )}
@@ -356,7 +356,7 @@ export function ChatHistorySheetSkeleton({ children }: { children: React.ReactNo
       </SheetTrigger>
       <SheetContent side="left" className="w-80 p-0">
         <SheetHeader className="p-4 pb-0">
-          <SheetTitle className="text-left">Chat History</SheetTitle>
+          <SheetTitle className="text-left">Campaign History</SheetTitle>
         </SheetHeader>
         
         <div className="flex flex-col h-full">

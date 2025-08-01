@@ -122,24 +122,24 @@
   }
 }
 
-/* Chat message spacing - Mobile-first responsive design */
-.chat-message {
+/* Campaign message spacing - Mobile-first responsive design */
+.campaign-message {
   @apply px-3 py-4; /* Mobile default */
 }
 
 @media (min-width: 768px) {
-  .chat-message {
+  .campaign-message {
     @apply px-4 py-6; /* Desktop enhancement */
   }
 }
 
-/* Chat input container spacing */
-.chat-input-container {
+/* Campaign input container spacing */
+.campaign-input-container {
   @apply px-3 py-4; /* Mobile default */
 }
 
 @media (min-width: 768px) {
-  .chat-input-container {
+  .campaign-input-container {
     @apply px-4 py-6; /* Desktop enhancement */
   }
 }

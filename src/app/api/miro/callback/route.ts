@@ -5,15 +5,21 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const code = searchParams.get('code')
     const error = searchParams.get('error')
+    
+    const appUrl = process.env.APP_URL || request.nextUrl.origin
 
     if (error) {
       console.error('OAuth error:', error)
-      return NextResponse.redirect(new URL('/?miro_error=access_denied', request.url))
+      return NextResponse.redirect(new URL('/?miro_error=access_denied', appUrl))
     }
 
     if (!code) {
-      return NextResponse.redirect(new URL('/?miro_error=no_code', request.url))
+      return NextResponse.redirect(new URL('/?miro_error=no_code', appUrl))
     }
+
+    // Use dedicated redirect URI env var for consistency
+    const redirectUri = process.env.MIRO_REDIRECT_URI || `${request.nextUrl.origin}/api/miro/callback`
+    console.log('[MIRO] Using redirect URI for token exchange:', redirectUri)
 
     // Exchange authorization code for access token
     const tokenResponse = await fetch('https://api.miro.com/v1/oauth/token', {
@@ -26,7 +32,7 @@ export async function GET(request: NextRequest) {
         client_id: process.env.MIRO_CLIENT_ID!,
         client_secret: process.env.MIRO_CLIENT_SECRET!,
         code: code,
-        redirect_uri: `${request.nextUrl.origin}/api/miro/callback`,
+        redirect_uri: redirectUri,
       }),
     })
 
@@ -35,7 +41,7 @@ export async function GET(request: NextRequest) {
     if (!tokenResponse.ok) {
       const errorData = await tokenResponse.text()
       console.error('Token exchange failed:', errorData)
-      return NextResponse.redirect(new URL('/?miro_error=token_exchange_failed', request.url))
+      return NextResponse.redirect(new URL('/?miro_error=token_exchange_failed', appUrl))
     }
 
     const tokenData = await tokenResponse.json()
@@ -78,14 +84,16 @@ export async function GET(request: NextRequest) {
           statusText: userResponse.statusText,
           body: errorText
         })
-        return NextResponse.redirect(new URL(`/?miro_error=user_info_failed&status=${userResponse.status}`, request.url))
+        return NextResponse.redirect(new URL(`/?miro_error=user_info_failed&status=${userResponse.status}`, appUrl))
       }
 
       userData = await userResponse.json()
     }
 
     // Create response and set cookies
-    const response = NextResponse.redirect(new URL('/?miro_success=true', request.url))
+    const response = NextResponse.redirect(new URL('/?miro_success=true', appUrl))
+    
+    console.log('[MIRO] Redirecting to:', `${appUrl}/?miro_success=true`)
     
     // Set secure cookies
     response.cookies.set('miro_access_token', tokenData.access_token, {
@@ -110,6 +118,7 @@ export async function GET(request: NextRequest) {
     return response
   } catch (error) {
     console.error('OAuth callback error:', error)
-    return NextResponse.redirect(new URL('/?miro_error=callback_error', request.url))
+    const appUrl = process.env.APP_URL || request.nextUrl.origin
+    return NextResponse.redirect(new URL('/?miro_error=callback_error', appUrl))
   }
 } 

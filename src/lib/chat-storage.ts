@@ -1,5 +1,5 @@
 import { format } from 'date-fns'
-import { ChatSession } from '@/stores/chat-store'
+import { ChatSession } from '@/stores/campaign-store'
 
 interface ExportData {
   version: string
@@ -230,7 +230,7 @@ export const getStorageStats = (): {
       return { totalSessions: 0, totalMessages: 0, estimatedSize: '0 KB' }
     }
     
-    const storedData = localStorage.getItem('chat-store')
+    const storedData = localStorage.getItem('campaign-store')
     if (!storedData) {
       return { totalSessions: 0, totalMessages: 0, estimatedSize: '0 KB' }
     }
@@ -259,10 +259,10 @@ export const getStorageStats = (): {
 }
 
 /**
- * Clear all chat data from storage
+ * Clear all campaign data from storage
  */
 export const clearAllChatData = (): void => {
   if (typeof window !== 'undefined') {
-    localStorage.removeItem('chat-store')
+    localStorage.removeItem('campaign-store')
   }
 } 

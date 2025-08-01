@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
 import { persist } from 'zustand/middleware'
-import { ChatMessage } from '@/types/chat'
+import { ChatMessage } from '@/types/campaign'
 import { nanoid } from 'nanoid'
 
 // Simplified serializable types for flow state
@@ -84,7 +84,7 @@ interface ChatActions {
   generateSessionTitle: (messages: ChatMessage[]) => string
   generateTitleFromAPI: (sessionId: string, text: string) => Promise<void>
   
-  // Default chat loading
+  // Default campaign loading
   loadDefaultChat: () => Promise<void>
 }
 
@@ -92,7 +92,7 @@ type ChatStore = ChatState & ChatActions
 
 const createInitialSession = (): ChatSession => ({
   id: crypto.randomUUID(),
-  title: 'New Chat',
+  title: 'New Campaign',
   messages: [],
   createdAt: new Date(),
   updatedAt: new Date(),
@@ -192,7 +192,7 @@ export const useChatStore = create<ChatStore>()(
             // Generate title if this is the first user message and session has default title
             if (
               message.role === 'user' && 
-              state.currentSession.title === 'New Chat' &&
+              state.currentSession.title === 'New Campaign' &&
               state.currentSession.messages.filter(m => m.role === 'user').length === 1
             ) {
               // Trigger async title generation
@@ -375,7 +375,7 @@ export const useChatStore = create<ChatStore>()(
       // Utilities
       generateSessionTitle: (messages: ChatMessage[]) => {
         const firstUserMessage = messages.find(m => m.role === 'user')
-        if (!firstUserMessage) return 'New Chat'
+        if (!firstUserMessage) return 'New Campaign'
         
         // Take first 50 characters and add ellipsis if needed
         const title = firstUserMessage.content.slice(0, 50)
@@ -396,9 +396,9 @@ export const useChatStore = create<ChatStore>()(
       
       loadDefaultChat: async () => {
         try {
-          const response = await fetch('/default-chat.json');
+          const response = await fetch('/default-campaign.json');
           if (!response.ok) {
-            console.warn('Default chat file not found, skipping default chat load');
+            console.warn('Default campaign file not found, skipping default campaign load');
             return;
           }
           
@@ -416,19 +416,19 @@ export const useChatStore = create<ChatStore>()(
           };
           
           set((state) => {
-            // Only load default chat if no sessions exist
+            // Only load default campaign if no sessions exist
             if (state.sessions.length === 0) {
               state.sessions.push(defaultSession);
               state.currentSession = defaultSession;
             }
           });
         } catch (error) {
-          console.error('Failed to load default chat:', error);
+          console.error('Failed to load default campaign:', error);
         }
       },
     })),
     {
-      name: 'chat-store',
+      name: 'campaign-store',
       // Only persist sessions and UI state, not temporary state
       partialize: (state) => ({
         sessions: state.sessions,

@@ -23,7 +23,8 @@ const chatApi = {
     chatSessionId?: string,
     panelContext?: string,
     images?: string[],
-    credentials?: { shopDomain: string; accessToken: string } | null
+    credentials?: { shopDomain: string; accessToken: string } | null,
+    documents?: any[] // Add documents parameter
   ) {
     console.log('[WORKER] Starting sendMessage');
     console.log('[WORKER] Flight data provided:', flightData);
@@ -78,6 +79,7 @@ const chatApi = {
       conversationHistory: conversationWithFlights,
       memories,
       images,
+      documents, // Add documents to request body
       // Include Shopify credentials if available
       ...(credentials && {
         shopDomain: credentials.shopDomain,
@@ -86,6 +88,9 @@ const chatApi = {
     };
 
     console.log('[WORKER] Request body conversation history length:', conversationWithFlights.length);
+    if (documents && documents.length > 0) {
+      console.log('[WORKER] Sending documents to backend:', documents.map((d: any) => ({ name: d.name, type: d.type, size: d.size })));
+    }
 
     try {
       // Make request to external API with abort signal
@@ -452,7 +457,7 @@ const chatApi = {
     if (currentAbortController) {
       currentAbortController.abort();
       currentAbortController = null;
-      console.log('[WORKER] Chat request cancelled.');
+      console.log('[WORKER] Campaign request cancelled.');
     }
   },
 };

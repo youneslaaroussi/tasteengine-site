@@ -4,7 +4,7 @@ export { FlightSearchContainer } from './flight-search-container'
 // Individual components
 export { FlightSearchControls } from './flight-search-controls'
 export { FlightSearchStatus } from './flight-search-status'
-export { FlightListChat } from './flight-list-chat'
+export { FlightListChat } from './flight-list-campaign'
 export { FlightCard } from './flight-card-new'
 
 // Store and types

@@ -7,13 +7,15 @@ import { usePanelData } from '@/hooks/use-panel-data'
 import { useChatStore } from '@/stores/chat-store'
 import { registerPanel } from '@/lib/panel-context'
 import { Button } from '@/components/ui/button'
+import { exportNotesToPDF, cleanHtmlForPDF } from '@/lib/pdf-export'
 import { 
   Save, 
   Bold, 
   Italic, 
   List, 
   ListOrdered,
-  Quote
+  Quote,
+  FileText
 } from 'lucide-react'
 
 interface TextData {
@@ -64,7 +66,7 @@ export function TextPanel() {
         'text-panel',
         'text-panel',
         () => storeCache.get(effectiveStoreName),
-        'Text notes associated with the current chat conversation'
+        'Text notes associated with the current campaign conversation'
       )
     }
   }, [chatSession?.id])
@@ -120,10 +122,30 @@ export function TextPanel() {
     clear(defaultTextData)
   }, [clear, editor])
 
+  const handleExportPDF = useCallback(async () => {
+    if (!editor) return
+    
+    try {
+      const htmlContent = editor.getHTML()
+      const cleanedContent = cleanHtmlForPDF(htmlContent)
+      
+      await exportNotesToPDF({
+        title: data.title || generateTextTitle(data),
+        content: cleanedContent,
+        sessionId: chatSession?.id,
+        chatTitle: chatSession?.title,
+        chatMessages: chatSession?.messages || [],
+        timestamp: new Date()
+      })
+    } catch (error) {
+      console.error('TASTEENGINE_PDF_EXPORT Error exporting PDF:', error)
+    }
+  }, [editor, data, chatSession])
+
   if (!chatSession || !editor) {
     return (
       <div className="h-full flex items-center justify-center text-gray-500">
-        {!chatSession ? 'Start a chat to take notes' : 'Loading...'}
+        {!chatSession ? 'Start a campaign to take notes' : 'Loading...'}
       </div>
     )
   }
@@ -181,16 +203,28 @@ export function TextPanel() {
           </Button>
         </div>
 
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          onClick={handleSave} 
-          disabled={!hasUnsavedChanges}
-          className="h-8 w-8 p-0"
-          title="Save"
-        >
-          <Save className="h-4 w-4" />
-        </Button>
+        <div className="flex gap-1">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={handleSave} 
+            disabled={!hasUnsavedChanges}
+            className="h-8 w-8 p-0"
+            title="Save"
+          >
+            <Save className="h-4 w-4" />
+          </Button>
+          
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={handleExportPDF} 
+            className="h-8 w-8 p-0"
+            title="Export PDF"
+          >
+            <FileText className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       {/* TipTap Editor */}

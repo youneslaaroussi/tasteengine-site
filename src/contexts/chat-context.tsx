@@ -32,15 +32,15 @@ export const ChatProvider = ({
   children,
 }: ChatProviderProps) => {
   const { initiateSearch } = useFlightSearch()
-  const chat = useChatHook({ onFlightSearchStart: initiateSearch })
+  const campaign = useChatHook({ onFlightSearchStart: initiateSearch })
   const { trackEvent } = useAnalytics()
 
   const contextValue = useMemo(
     () => ({
-      ...chat,
+      ...campaign,
       trackEvent,
     }),
-    [chat, trackEvent],
+    [campaign, trackEvent],
   )
 
   return (

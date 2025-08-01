@@ -40,7 +40,7 @@ export class AIService {
     this.baseUrl = baseUrl
   }
 
-  // Send chat message with store context
+  // Send campaign message with store context
   async sendMessage(message: string, options: ChatOptions = {}): Promise<any> {
     const credentials = storeManager.getActiveStoreCredentials()
 
@@ -65,7 +65,7 @@ export class AIService {
     }
   }
 
-  // Streaming chat
+  // Streaming campaign
   async *streamChat(requestBody: ChatRequestBody): AsyncGenerator<StreamChunk, void, unknown> {
     const response = await fetch(`${this.baseUrl}/chat/stream`, {
       method: 'POST',
@@ -75,7 +75,7 @@ export class AIService {
 
     if (!response.ok) {
       const errorText = await response.text()
-      throw new Error(`Chat request failed: ${response.statusText} - ${errorText}`)
+      throw new Error(`Campaign request failed: ${response.statusText} - ${errorText}`)
     }
 
     const reader = response.body?.getReader()
@@ -110,9 +110,9 @@ export class AIService {
     }
   }
 
-  // Regular chat
+  // Regular campaign
   async regularChat(requestBody: ChatRequestBody): Promise<any> {
-    const response = await fetch(`${this.baseUrl}/chat`, {
+    const response = await fetch(`${this.baseUrl}/campaign`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(requestBody)
@@ -120,7 +120,7 @@ export class AIService {
 
     if (!response.ok) {
       const errorText = await response.text()
-      throw new Error(`Chat request failed: ${response.statusText} - ${errorText}`)
+      throw new Error(`Campaign request failed: ${response.statusText} - ${errorText}`)
     }
 
     return await response.json()

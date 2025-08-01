@@ -87,7 +87,7 @@ export function ChatWithStoreContext({ sessionId, className = '' }: ChatWithStor
       }
 
     } catch (err) {
-      console.error('Chat error:', err)
+      console.error('Campaign error:', err)
       
       const formattedError = aiService.formatError(err as Error)
       setError(formattedError.message)

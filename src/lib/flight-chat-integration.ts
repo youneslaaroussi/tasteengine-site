@@ -1,9 +1,9 @@
-import { ChatMessage } from '@/types/chat'
+import { ChatMessage } from '@/types/campaign'
 import { BookingFlightOption } from '@/types/flights'
 
 /**
- * Flight chat integration utilities
- * Handles the integration between flight search results and chat messages
+ * Flight campaign integration utilities
+ * Handles the integration between flight search results and campaign messages
  */
 
 export interface FlightMessageData {
@@ -13,7 +13,7 @@ export interface FlightMessageData {
 }
 
 /**
- * Creates a chat message for flight search results
+ * Creates a campaign message for flight search results
  */
 export function createFlightResultMessage(data: FlightMessageData): Omit<ChatMessage, 'id' | 'createdAt'> {
   const { flights, searchId, totalFound } = data
@@ -37,7 +37,7 @@ export function createFlightLoadedSystemMessage(): Omit<ChatMessage, 'id' | 'cre
 }
 
 /**
- * Safely adds flight results to chat history
+ * Safely adds flight results to campaign history
  */
 export async function addFlightResultsToChat(
   data: FlightMessageData,
@@ -45,7 +45,7 @@ export async function addFlightResultsToChat(
 ): Promise<void> {
   try {
     if (!data.flights || data.flights.length === 0) {
-      console.warn('No flights to add to chat history')
+      console.warn('No flights to add to campaign history')
       return
     }
 
@@ -59,7 +59,7 @@ export async function addFlightResultsToChat(
     }, 500) // Small delay to ensure proper message ordering
 
   } catch (error) {
-    console.error('Error adding flight results to chat:', error)
+    console.error('Error adding flight results to campaign:', error)
 
     // Add a fallback message if the detailed message fails
     try {
@@ -74,7 +74,7 @@ export async function addFlightResultsToChat(
 }
 
 /**
- * Determines if flight results should be added to chat
+ * Determines if flight results should be added to campaign
  */
 export function shouldAddFlightResults(
   wasSearching: boolean,

@@ -18,7 +18,7 @@ export const ChatInterface = memo(({ className }: ChatInterfaceProps) => {
   const chatInputRef = useRef<ChatInputRef>(null)
   
   // Get state from contexts
-  const chat = useChatContext()
+  const campaign = useChatContext()
   const { isSearching, flights } = useFlightSearch()
   
   // Custom hook to process messages
@@ -31,32 +31,32 @@ export const ChatInterface = memo(({ className }: ChatInterfaceProps) => {
 
   useEffect(() => {
     scrollToBottom()
-  }, [chat.messages, scrollToBottom])
+  }, [campaign.messages, scrollToBottom])
 
   // Focus input when loading completes
   useEffect(() => {
-    if (!chat.isLoading) {
+    if (!campaign.isLoading) {
       setTimeout(() => chatInputRef.current?.focus(), 100)
     }
-  }, [chat.isLoading])
+  }, [campaign.isLoading])
 
-  const hasUserMessages = chat.messages.some(msg => msg.role === 'user')
+  const hasUserMessages = campaign.messages.some((msg: ChatMessageType) => msg.role === 'user')
 
   return (
     <div className={`h-full flex flex-col bg-white ${className || ''}`}>
       {/* Messages */}
       <div className="flex-1 overflow-y-auto custom-scrollbar">
-        {chat.messages.map((message, index) => (
+        {campaign.messages.map((message: ChatMessageType, index: number) => (
           <ChatMessage
             key={message.id}
             message={message}
-            isStreaming={chat.isLoading && index === chat.messages.length - 1}
+            isStreaming={campaign.isLoading && index === campaign.messages.length - 1}
           />
         ))}
         
         {/* Show flight search status */}
         {isSearching && (
-          <div className="chat-message assistant bg-white mb-4">
+          <div className="campaign-message assistant bg-white mb-4">
             <div className="max-w-3xl mx-auto">
               <div className="flex gap-5">
                 <div className="flex-shrink-0">
@@ -76,7 +76,7 @@ export const ChatInterface = memo(({ className }: ChatInterfaceProps) => {
         )}
 
         {/* Show starter prompts only if no user messages */}
-        {!hasUserMessages && !chat.isLoading && (
+        {!hasUserMessages && !campaign.isLoading && (
           <div className="pt-8 px-3 md:px-4">
             <StarterPrompts onPromptClick={() => {
               // The input is now handled by the starter prompt itself

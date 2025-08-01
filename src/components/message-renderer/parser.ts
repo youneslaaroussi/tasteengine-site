@@ -1,5 +1,5 @@
 
-import { ToolCallContent } from '@/types/chat';
+import { ToolCallContent } from '@/types/campaign';
 
 export type ContentBlock = 
   | { type: 'text'; content: string }

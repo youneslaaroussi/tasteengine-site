@@ -151,7 +151,7 @@ export function ShopifyProvider({ children }: ShopifyProviderProps) {
 
   const handleDomainSubmit = (domain: string) => {
     const clientId = process.env.NEXT_PUBLIC_SHOPIFY_CLIENT_ID
-    const redirectUri = `${window.location.origin}/api/shopify/callback`
+    const redirectUri = process.env.NEXT_PUBLIC_SHOPIFY_REDIRECT_URI || `${window.location.origin}/api/shopify/callback`
     
     // Normalize shop domain
     const normalizedDomain = domain.replace(/^https?:\/\//, '').replace(/\/$/, '')
@@ -166,6 +166,7 @@ export function ShopifyProvider({ children }: ShopifyProviderProps) {
     const scopes = 'read_products,read_orders,read_customers,read_content'
     const authUrl = `https://${finalDomain}/admin/oauth/authorize?client_id=${clientId}&scope=${scopes}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}`
     
+    console.log('[SHOPIFY] Initiating OAuth with redirect URI:', redirectUri)
     setShowDomainInput(false)
     window.location.href = authUrl
   }

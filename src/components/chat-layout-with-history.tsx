@@ -39,7 +39,7 @@ export function ChatLayoutWithHistory({ children }: ChatLayoutWithHistoryProps) 
   const [viewMode, setViewMode] = useState<ViewMode>('campaign')
   const { sessions, loadDefaultChat } = useChatStore()
   
-  // Load default chat on first visit
+  // Load default campaign on first visit
   useEffect(() => {
     if (sessions.length === 0) {
       loadDefaultChat()

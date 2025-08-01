@@ -1,4 +1,4 @@
-import { useChatStore } from '@/stores/chat-store'
+import { useChatStore } from '@/stores/campaign-store'
 
 // Global registry of panel types and their stores
 const panelRegistry = new Map<string, {
@@ -32,7 +32,7 @@ export function getAllPanelData(chatSessionId?: string) {
       const state = store.getState()
       console.log('[GET_PANEL_DATA] Got state for', panelType, ':', !!state)
       
-      // If we have a chat session, get panel data specific to that session
+      // If we have a campaign session, get panel data specific to that session
       const effectiveStoreName = chatSessionId ? `${storeName}-${chatSessionId}` : storeName
       
       panelData[panelType] = {
@@ -60,7 +60,7 @@ export function getAllPanelData(chatSessionId?: string) {
 export function formatPanelContextForAgent(chatSessionId?: string): string {
   const panelData = getAllPanelData(chatSessionId)
   
-  console.log('[PANEL_CONTEXT] Chat session ID:', chatSessionId)
+  console.log('[PANEL_CONTEXT] Campaign session ID:', chatSessionId)
   console.log('[PANEL_CONTEXT] Panel registry size:', panelRegistry.size)
   console.log('[PANEL_CONTEXT] Panel data keys:', Object.keys(panelData))
   

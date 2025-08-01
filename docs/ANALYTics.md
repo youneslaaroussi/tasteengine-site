@@ -4,15 +4,15 @@ This document outlines the events tracked in the application for analytics purpo
 
 ## Events
 
-### Chat
+### Campaign
 
-- **`send_message`**: Fired when a user sends a message in the chat.
-  - **Category**: `chat`
+- **`send_message`**: Fired when a user sends a message in the campaign.
+  - **Category**: `campaign`
   - **Label**: `chat_message`
   - **Value**: `1`
 
 - **`starter_prompt`**: Fired when a user clicks on a starter prompt.
-  - **Category**: `chat`
+  - **Category**: `campaign`
   - **Label**: The text of the prompt that was clicked.
   - **Value**: `1`
 

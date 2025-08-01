@@ -127,7 +127,7 @@ export function AdvancedStoreSelector({
 
   const initiateOAuth = (shopDomain: string) => {
     const clientId = process.env.NEXT_PUBLIC_SHOPIFY_CLIENT_ID
-    const redirectUri = `${window.location.origin}/api/shopify/callback`
+    const redirectUri = process.env.NEXT_PUBLIC_SHOPIFY_REDIRECT_URI || `${window.location.origin}/api/shopify/callback`
     
     // Normalize shop domain
     const normalizedDomain = shopDomain.replace(/^https?:\/\//, '').replace(/\/$/, '')
@@ -142,6 +142,7 @@ export function AdvancedStoreSelector({
     const scopes = 'read_products,read_orders,read_customers,read_content'
     const authUrl = `https://${finalDomain}/admin/oauth/authorize?client_id=${clientId}&scope=${scopes}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}`
     
+    console.log('[SHOPIFY] Advanced selector OAuth with redirect URI:', redirectUri)
     window.location.href = authUrl
   }
 

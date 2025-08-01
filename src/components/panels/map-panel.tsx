@@ -152,7 +152,7 @@ export function MapPanel() {
         'map-panel',
         'map-panel',
         () => storeCache.get(effectiveStoreName),
-        'Interactive map with pins and location data for the current chat conversation'
+        'Interactive map with pins and location data for the current campaign conversation'
       )
     }
   }, [chatSession?.id])
@@ -162,7 +162,7 @@ export function MapPanel() {
     setIsClient(true)
   }, [])
 
-  // Update map view when data changes (e.g., switching chat sessions)
+  // Update map view when data changes (e.g., switching campaign sessions)
   useEffect(() => {
     if (mapRef.current && data && data.position) {
       mapRef.current.setView([data.position.lat, data.position.lng], data.zoom)
@@ -277,7 +277,7 @@ export function MapPanel() {
   if (!chatSession) {
     return (
       <div className="h-full flex items-center justify-center text-gray-500">
-        Start a chat to view map
+        Start a campaign to view map
       </div>
     )
   }

@@ -42,7 +42,7 @@ GoFlyTo is built with a clean, minimal architecture that prioritizes performance
 
 ### 3. Data Flow
 ```
-User Input → Chat Hook → External API → Streaming Response → UI Update
+User Input → Campaign Hook → External API → Streaming Response → UI Update
                     ↓
             Flight Search Hook → Progressive Polling → UI Update
 ```
@@ -50,23 +50,23 @@ User Input → Chat Hook → External API → Streaming Response → UI Update
 ## Component Breakdown
 
 ### ChatInterface (Main Container)
-**Responsibility**: Orchestrates chat and flight search
+**Responsibility**: Orchestrates campaign and flight search
 **State**: None (delegated to hooks)
 **Effects**: Minimal (auto-scroll, focus management)
 
 ```typescript
 const ChatInterface = () => {
-  const chat = useChat({ onFlightSearchStart: flightSearch.startSearch })
+  const campaign = useChat({ onFlightSearchStart: flightSearch.startSearch })
   const flightSearch = useFlightSearch()
   
   // Minimal effects for UX
-  useEffect(() => scrollToBottom(), [chat.messages])
-  useEffect(() => focusInput(), [chat.isLoading])
+  useEffect(() => scrollToBottom(), [campaign.messages])
+  useEffect(() => focusInput(), [campaign.isLoading])
   
   // Clean event handlers
   const handleSubmit = useCallback((e) => {
-    chat.handleSubmit(e, flightData)
-  }, [chat, flightData])
+    campaign.handleSubmit(e, flightData)
+  }, [campaign, flightData])
 }
 ```
 
@@ -103,7 +103,7 @@ const ChatInput = forwardRef(({ input, setInput, onSubmit, isLoading }) => {
 const ChatMessage = memo(({ message, isStreaming }) => {
   // Pure rendering logic
   return (
-    <div className={cn("chat-message", isUser ? "user" : "assistant")}>
+    <div className={cn("campaign-message", isUser ? "user" : "assistant")}>
       <MessageContent content={message.content} isStreaming={isStreaming} />
     </div>
   )
@@ -113,7 +113,7 @@ const ChatMessage = memo(({ message, isStreaming }) => {
 ## Hook Architecture
 
 ### useChat Hook
-**Purpose**: Manages chat state and API communication
+**Purpose**: Manages campaign state and API communication
 **State**: messages, input, isLoading
 **Side Effects**: API calls, streaming response handling
 
@@ -172,8 +172,8 @@ export function useFlightSearch() {
 
 ### External API Communication
 ```typescript
-// Chat API
-POST /agent/chat/stream
+// Campaign API
+POST /agent/campaign/stream
 {
   "message": "user input",
   "conversationHistory": [
@@ -229,12 +229,12 @@ useEffect(() => {
 ### CSS Architecture
 ```css
 /* Mobile-first responsive design */
-.chat-message {
+.campaign-message {
   @apply px-3 py-4; /* Mobile default */
 }
 
 @media (min-width: 768px) {
-  .chat-message {
+  .campaign-message {
     @apply px-4 py-6; /* Desktop enhancement */
   }
 }
@@ -354,7 +354,7 @@ const nextConfig = {
 - **Error rate** tracking
 
 ### User Experience Metrics
-- **Chat completion rates**
+- **Campaign completion rates**
 - **Flight search success rates**
 - **Mobile vs desktop usage**
 - **User flow analytics**

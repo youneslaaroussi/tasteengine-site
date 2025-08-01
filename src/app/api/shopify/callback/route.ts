@@ -8,17 +8,21 @@ export async function GET(request: NextRequest) {
     const shop = searchParams.get('shop')
     const error = searchParams.get('error')
 
+    const appUrl = process.env.APP_URL || request.nextUrl.origin
+    console.log('[SHOPIFY] Callback received from shop:', shop)
+    console.log('[SHOPIFY] Request URL origin:', request.nextUrl.origin)
+
     if (error) {
       console.error('OAuth error:', error)
-      return NextResponse.redirect(new URL('/?shopify_error=access_denied', request.url))
+      return NextResponse.redirect(new URL('/?shopify_error=access_denied', appUrl))
     }
 
     if (!code) {
-      return NextResponse.redirect(new URL('/?shopify_error=no_code', request.url))
+      return NextResponse.redirect(new URL('/?shopify_error=no_code', appUrl))
     }
 
     if (!shop) {
-      return NextResponse.redirect(new URL('/?shopify_error=no_shop', request.url))
+      return NextResponse.redirect(new URL('/?shopify_error=no_shop', appUrl))
     }
 
     // Validate state to prevent CSRF attacks
@@ -43,14 +47,14 @@ export async function GET(request: NextRequest) {
     if (!tokenResponse.ok) {
       const errorData = await tokenResponse.text()
       console.error('Token exchange failed:', errorData)
-      return NextResponse.redirect(new URL('/?shopify_error=token_exchange_failed', request.url))
+      return NextResponse.redirect(new URL('/?shopify_error=token_exchange_failed', appUrl))
     }
 
     const tokenData = await tokenResponse.json()
     console.log('Token exchange successful')
 
     // Get shop information using the access token
-    const shopResponse = await fetch(`https://${shop}/admin/api/2024-01/shop.json`, {
+    const shopResponse = await fetch(`https://${shop}/admin/api/2023-04/shop.json`, {
       headers: {
         'X-Shopify-Access-Token': tokenData.access_token,
         'Content-Type': 'application/json',
@@ -59,7 +63,7 @@ export async function GET(request: NextRequest) {
 
     if (!shopResponse.ok) {
       console.error('Failed to get shop info:', shopResponse.status)
-      return NextResponse.redirect(new URL('/?shopify_error=shop_info_failed', request.url))
+      return NextResponse.redirect(new URL('/?shopify_error=shop_info_failed', appUrl))
     }
 
     const shopData = await shopResponse.json()
@@ -91,8 +95,10 @@ export async function GET(request: NextRequest) {
     }
 
     // Create response and set cookies
-    const response = NextResponse.redirect(new URL('/?shopify_success=true', request.url))
+    const response = NextResponse.redirect(new URL('/?shopify_success=true', appUrl))
     
+    console.log('[SHOPIFY] Redirecting to:', `${appUrl}/?shopify_success=true`)
+
     // Set secure cookies - both new store data and legacy user data
     response.cookies.set('shopify_access_token', tokenData.access_token, {
       httpOnly: true,
@@ -119,6 +125,7 @@ export async function GET(request: NextRequest) {
     return response
   } catch (error) {
     console.error('OAuth callback error:', error)
-    return NextResponse.redirect(new URL('/?shopify_error=callback_error', request.url))
+    const appUrl = process.env.APP_URL || request.nextUrl.origin
+    return NextResponse.redirect(new URL('/?shopify_error=callback_error', appUrl))
   }
 } 

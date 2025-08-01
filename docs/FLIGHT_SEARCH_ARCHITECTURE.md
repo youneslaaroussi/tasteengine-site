@@ -158,9 +158,9 @@ function CustomFlightSearch() {
 }
 ```
 
-### Chat Integration
+### Campaign Integration
 
-For displaying flights in chat messages:
+For displaying flights in campaign messages:
 
 ```tsx
 import { FlightListChat } from '@/components/flight-search'

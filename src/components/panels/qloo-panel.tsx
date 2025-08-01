@@ -278,7 +278,7 @@ const convertToQlooResult = (toolCall: { toolName: string; toolId: string; conte
   return result
 }
 
-// Function to parse all Qloo tools from chat session
+// Function to parse all Qloo tools from campaign session
 const parseQlooToolsFromSession = (chatSession: any): QlooToolResult[] => {
   if (!chatSession?.messages) return []
   
@@ -305,7 +305,7 @@ export function QlooPanel() {
   const [activeTab, setActiveTab] = useState<string>('all')
   const [parsedResults, setParsedResults] = useState<QlooToolResult[]>([])
 
-  // Parse tools from current chat session
+  // Parse tools from current campaign session
   useEffect(() => {
     if (chatSession) {
       const results = parseQlooToolsFromSession(chatSession)
@@ -329,7 +329,7 @@ export function QlooPanel() {
         'qloo-panel',
         'qloo-panel',
         () => data,
-        'Qloo insights and entity data for the current chat conversation'
+        'Qloo insights and entity data for the current campaign conversation'
       )
     }
   }, [chatSession?.id, data])
@@ -683,7 +683,7 @@ export function QlooPanel() {
       <div className="h-full flex items-center justify-center text-gray-500">
         <div className="text-center">
           <Target className="w-8 h-8 mx-auto mb-2 text-gray-400" />
-          <p className="text-sm">Start a chat to see Qloo insights</p>
+          <p className="text-sm">Start a campaign to see Qloo insights</p>
         </div>
       </div>
     )

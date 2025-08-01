@@ -32,7 +32,7 @@ export function useMessageProcessor() {
     // Add flight results when search completes
     // The message queue will handle coordination with ongoing streams
     if (shouldAddFlightResults(wasSearching ?? false, isSearching, flights)) {
-      console.log('[MESSAGE_PROCESSOR] Adding flight results to chat - flights:', flights.length, 'searchId:', searchId);
+      console.log('[MESSAGE_PROCESSOR] Adding flight results to campaign - flights:', flights.length, 'searchId:', searchId);
       
       addFlightResultsToChat(
         {

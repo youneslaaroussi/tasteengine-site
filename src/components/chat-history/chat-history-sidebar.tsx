@@ -109,7 +109,7 @@ export function ChatHistorySidebar() {
   }
 
   const handleDeleteSession = (sessionId: string) => {
-    if (window.confirm('Are you sure you want to delete this chat?')) {
+    if (window.confirm('Are you sure you want to delete this campaign?')) {
       deleteSession(sessionId)
     }
   }
@@ -160,7 +160,7 @@ export function ChatHistorySidebar() {
               variant="outline"
             >
               <Plus className="h-4 w-4 mr-2" />
-              New Chat
+              New Campaign
             </Button>
           </SidebarMenuItem>
           <SidebarMenuItem>
@@ -179,7 +179,7 @@ export function ChatHistorySidebar() {
 
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Chat History</SidebarGroupLabel>
+          <SidebarGroupLabel>Campaign History</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {Object.entries(groupedSessions).map(([date, dateSessions]) => (
@@ -267,7 +267,7 @@ export function ChatHistorySidebar() {
                 <SidebarMenuItem>
                   <div className="text-center py-8 text-muted-foreground">
                     <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                    <p className="text-sm">No chat history yet</p>
+                    <p className="text-sm">No campaign history yet</p>
                     <p className="text-xs">Start a new conversation to see it here</p>
                   </div>
                 </SidebarMenuItem>

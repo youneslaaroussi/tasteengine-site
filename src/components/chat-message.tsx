@@ -21,7 +21,7 @@ export const ChatMessage = memo(({ message, isStreaming }: ChatMessageProps) => 
 
   if (isSystem) {
     return (
-      <div className="chat-message border-b border-gray-100 mb-4">
+      <div className="campaign-message border-b border-gray-100 mb-4">
         <div className="max-w-3xl mx-auto">
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
             <p className="text-sm text-blue-800">{message.content}</p>
@@ -33,7 +33,7 @@ export const ChatMessage = memo(({ message, isStreaming }: ChatMessageProps) => 
 
   if (isFlights && message.flights && message.searchId) {
     return (
-      <div className="chat-message assistant bg-white mb-4">
+      <div className="campaign-message assistant bg-white mb-4">
         <div className="max-w-3xl mx-auto">
           <div className="flex gap-5">
             <div className="flex-shrink-0">
@@ -55,7 +55,7 @@ export const ChatMessage = memo(({ message, isStreaming }: ChatMessageProps) => 
   }
 
   return (
-    <div className={cn("chat-message mb-4", isUser ? "user bg-gray-50" : "assistant bg-white")}>
+    <div className={cn("campaign-message mb-4", isUser ? "user bg-gray-50" : "assistant bg-white")}>
       <div className="max-w-3xl mx-auto">
         <div className="flex gap-5">
           {/* Avatar */}

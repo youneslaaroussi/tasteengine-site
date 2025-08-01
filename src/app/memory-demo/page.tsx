@@ -35,7 +35,7 @@ export default function MemoryDemoPage() {
             for fast, offline access.
           </p>
           <p>
-            <strong>3. Chat Integration:</strong> When you send messages, all stored memories are automatically 
+            <strong>3. Campaign Integration:</strong> When you send messages, all stored memories are automatically 
             included in the request to provide context to the AI.
           </p>
           <p>

@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useRef, useEffect } from 'react'
-import { ChatMessage, FlightSearchData } from '@/types/chat'
+import { ChatMessage, FlightSearchData, DocumentAttachment } from '@/types/chat'
 import { useAnalytics } from './use-analytics'
 import { useChatStore } from '@/stores/chat-store'
 import { getChatWorker } from '@/workers/chat.worker.factory'
@@ -25,8 +25,8 @@ export function useChat({
   const { trackEvent } = useAnalytics()
   const abortControllerRef = useRef<AbortController | null>(null)
   const { permission, requestPermission, showNotification } = useNotifications()
-  
-  console.log('[CHAT] useChat initialized, notification permission:', permission)
+
+  console.log('[CAMPAIGN] useChat initialized, notification permission:', permission)
 
   const {
     currentSession,
@@ -53,23 +53,23 @@ export function useChat({
   const updateFullMessage = useCallback(() => {
     const assistantMsgId = assistantMsgIdRef.current
     if (!assistantMsgId) return
-    
+
     const fullContent = messageContentRef.current
-    
+
     useChatStore.getState().updateMessage(assistantMsgId, () => fullContent)
   }, [])
 
   const onUpdateRef = useRef((update: string) => {
     console.log('[FRONTEND] onUpdate called with content length:', update.length);
-    
+
     const assistantMsgId = assistantMsgIdRef.current;
     if (!assistantMsgId) return
-    
+
     // Calculate only the NEW text content (delta from last update)
     const lastText = lastTextContentRef.current;
     const newTextPortion = update.startsWith(lastText) ? update.slice(lastText.length) : update;
     lastTextContentRef.current = update;
-    
+
     // Append only the new text portion to current content
     messageContentRef.current += newTextPortion;
     updateFullMessage()
@@ -79,26 +79,25 @@ export function useChat({
     const assistantMsgId = assistantMsgIdRef.current;
     if (!assistantMsgId) return;
 
-    console.log('[CHAT] Tool call received:', toolCall.type, toolCall.toolName, 'ID:', toolCall.id);
+    console.log('[CAMPAIGN] Tool call received:', toolCall.type, toolCall.toolName, 'ID:', toolCall.id);
 
     if (toolCall.type === 'tool_start') {
       const toolId = toolCall.id || nanoid();
       const toolKey = `${toolCall.toolName}_${toolId}`;
       toolCallIdsRef.current[toolKey] = toolId;
-      const toolMarkdown = `\n{% tool_start '${toolCall.toolName}' '${toolId}' %}\n{% tool_description %}${
-        toolCall.toolDescription || toolCall.description || 'Processing...'
-      }{% end_tool_description %}\n{% endtool %}\n`;
-      
-      console.log('[CHAT] Adding tool start markdown for:', toolCall.toolName, 'with ID:', toolId);
-      
+      const toolMarkdown = `\n{% tool_start '${toolCall.toolName}' '${toolId}' %}\n{% tool_description %}${toolCall.toolDescription || toolCall.description || 'Processing...'
+        }{% end_tool_description %}\n{% endtool %}\n`;
+
+      console.log('[CAMPAIGN] Adding tool start markdown for:', toolCall.toolName, 'with ID:', toolId);
+
       // Insert tool call at the current end of content
       messageContentRef.current += toolMarkdown
       updateFullMessage()
-      
-        } else if (toolCall.type === 'tool_complete') {
-      console.log('[CHAT] INITIAL ENTERED TOOL_COMPLETE BRANCH');
-      console.log('[CHAT] Tool complete for:', toolCall.toolName, 'with data:', toolCall.data);
-      
+
+    } else if (toolCall.type === 'tool_complete') {
+      console.log('[CAMPAIGN] INITIAL ENTERED TOOL_COMPLETE BRANCH');
+      console.log('[CAMPAIGN] Tool complete for:', toolCall.toolName, 'with data:', toolCall.data);
+
       // Handle update_panel FIRST before toolId check
       console.log('[MIRO_DEBUG] Checking toolCall.toolName:', toolCall.toolName, 'equals update_panel?', toolCall.toolName === 'update_panel');
       if (toolCall.toolName === 'update_panel') {
@@ -106,11 +105,11 @@ export function useChat({
         try {
           const result = toolCall.data;
           console.log('[MIRO_DEBUG] Raw tool result:', result);
-          
+
           if (result && result.panelType) {
             // Extract panel data (everything except metadata)
             const { panelType, success, message, action, timestamp, ...panelData } = result;
-            
+
             console.log('[MIRO_DEBUG] Extracted panelType:', panelType);
             console.log('[MIRO_DEBUG] Extracted panelData:', panelData);
             console.log('[MIRO_DEBUG] Current session ID:', useChatStore.getState().currentSession?.id);
@@ -132,7 +131,7 @@ export function useChat({
         'compare_insights', 'analyze_entities', 'get_trending', 'explain_recommendation',
         'geocode_location'
       ];
-      
+
       if (qlooTools.includes(toolCall.toolName)) {
         console.log('[QLOO_DEBUG] Handling Qloo tool result:', toolCall.toolName, toolCall.data);
         try {
@@ -143,7 +142,7 @@ export function useChat({
             duration: toolCall.data?.duration,
             ...toolCall.data
           };
-          
+
           // Add to Qloo panel via global function
           if (typeof window !== 'undefined' && (window as any).addQlooResult) {
             (window as any).addQlooResult(qlooResult);
@@ -155,7 +154,7 @@ export function useChat({
           console.error('[QLOO_DEBUG] Error handling Qloo tool result:', error);
         }
       }
-      
+
       if (toolCall.toolName === 'initiate_flight_search') {
         const toolData = toolCall.data;
         if (toolData) {
@@ -167,22 +166,21 @@ export function useChat({
         }
       }
 
-      const toolId = toolCall.id || Object.values(toolCallIdsRef.current).find(id => 
+      const toolId = toolCall.id || Object.values(toolCallIdsRef.current).find(id =>
         messageContentRef.current.includes(`{% tool_start '${toolCall.toolName}' '${id}' %}`)
       );
-      
+
       if (!toolId) {
-        console.error('[CHAT] No tool ID found for:', toolCall.toolName, 'Available IDs:', toolCallIdsRef.current);
+        console.error('[CAMPAIGN] No tool ID found for:', toolCall.toolName, 'Available IDs:', toolCallIdsRef.current);
         return;
       }
 
-      console.log('[CHAT] Completing tool:', toolCall.toolName, 'with ID:', toolId);
+      console.log('[CAMPAIGN] Completing tool:', toolCall.toolName, 'with ID:', toolId);
 
       // Create complete tool markdown
-      let completeToolMarkdown = `{% tool_complete '${toolCall.toolName}' '${toolId}' %}\n{% tool_description %}${
-        toolCall.toolDescription || toolCall.description || 'Completed'
-      }{% end_tool_description %}\n`;
-      
+      let completeToolMarkdown = `{% tool_complete '${toolCall.toolName}' '${toolId}' %}\n{% tool_description %}${toolCall.toolDescription || toolCall.description || 'Completed'
+        }{% end_tool_description %}\n`;
+
       if (toolCall.data) {
         completeToolMarkdown += (typeof toolCall.data === 'string' ? toolCall.data : JSON.stringify(toolCall.data, null, 2)) + '\n';
       }
@@ -190,17 +188,17 @@ export function useChat({
 
       // Use regex to find and replace the tool call by ID instead of exact pattern matching
       const toolStartRegex = new RegExp(`{% tool_start '${toolCall.toolName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}' '${toolId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}' %}[\\s\\S]*?{% endtool %}`, 'g');
-      
+
       const oldContent = messageContentRef.current;
       messageContentRef.current = messageContentRef.current.replace(toolStartRegex, completeToolMarkdown);
-      
+
       if (oldContent === messageContentRef.current) {
-        console.error('[CHAT] Tool replacement failed for:', toolCall.toolName, toolId);
-        console.log('[CHAT] Looking for pattern in content');
+        console.error('[CAMPAIGN] Tool replacement failed for:', toolCall.toolName, toolId);
+        console.log('[CAMPAIGN] Looking for pattern in content');
       } else {
-        console.log('[CHAT] Successfully replaced tool:', toolCall.toolName);
+        console.log('[CAMPAIGN] Successfully replaced tool:', toolCall.toolName);
       }
-      
+
       updateFullMessage()
     }
   });
@@ -209,15 +207,15 @@ export function useChat({
   useEffect(() => {
     onUpdateRef.current = (update: string) => {
       console.log('[FRONTEND] onUpdate called with content length:', update.length);
-      
+
       const assistantMsgId = assistantMsgIdRef.current;
       if (!assistantMsgId) return
-      
+
       // Calculate only the NEW text content (delta from last update)
       const lastText = lastTextContentRef.current;
       const newTextPortion = update.startsWith(lastText) ? update.slice(lastText.length) : update;
       lastTextContentRef.current = update;
-      
+
       // Append only the new text portion to current content
       messageContentRef.current += newTextPortion;
       updateFullMessage()
@@ -226,32 +224,31 @@ export function useChat({
     onToolCallRef.current = (toolCall: any) => {
       const assistantMsgId = assistantMsgIdRef.current;
       if (!assistantMsgId) {
-        console.log('[CHAT] NO ASSISTANT MSG ID, RETURNING');
+        console.log('[CAMPAIGN] NO ASSISTANT MSG ID, RETURNING');
         return;
       }
 
-      console.log('[CHAT] Tool call received:', toolCall.type, toolCall.toolName, 'ID:', toolCall.id);
-      console.log('[CHAT] FULL TOOL CALL DEBUG:', toolCall);
-      console.log('[CHAT] About to check tool_start condition');
+      console.log('[CAMPAIGN] Tool call received:', toolCall.type, toolCall.toolName, 'ID:', toolCall.id);
+      console.log('[CAMPAIGN] FULL TOOL CALL DEBUG:', toolCall);
+      console.log('[CAMPAIGN] About to check tool_start condition');
 
       if (toolCall.type === 'tool_start') {
-        console.log('[CHAT] ENTERED TOOL_START BRANCH');
+        console.log('[CAMPAIGN] ENTERED TOOL_START BRANCH');
         const toolId = toolCall.id || nanoid();
         const toolKey = `${toolCall.toolName}_${toolId}`;
         toolCallIdsRef.current[toolKey] = toolId;
-        const toolMarkdown = `\n{% tool_start '${toolCall.toolName}' '${toolId}' %}\n{% tool_description %}${
-          toolCall.toolDescription || toolCall.description || 'Processing...'
-        }{% end_tool_description %}\n{% endtool %}\n`;
-        
-        console.log('[CHAT] Adding tool start markdown for:', toolCall.toolName, 'with ID:', toolId);
-        
+        const toolMarkdown = `\n{% tool_start '${toolCall.toolName}' '${toolId}' %}\n{% tool_description %}${toolCall.toolDescription || toolCall.description || 'Processing...'
+          }{% end_tool_description %}\n{% endtool %}\n`;
+
+        console.log('[CAMPAIGN] Adding tool start markdown for:', toolCall.toolName, 'with ID:', toolId);
+
         // Insert tool call at the current end of content
         messageContentRef.current += toolMarkdown
         updateFullMessage()
-        
+
       } else if (toolCall.type === 'tool_complete') {
-        console.log('[CHAT] Tool complete for:', toolCall.toolName, 'with data:', toolCall.data);
-        
+        console.log('[CAMPAIGN] Tool complete for:', toolCall.toolName, 'with data:', toolCall.data);
+
         if (toolCall.toolName === 'initiate_flight_search') {
           const toolData = toolCall.data;
           if (toolData) {
@@ -274,7 +271,7 @@ export function useChat({
           toolCall.toolName.includes('deep_dive')
         )) {
           console.log('[QLOO_DEBUG] Qloo tool call detected:', toolCall.toolName, toolCall.data);
-          
+
           // Send to Qloo panel via global function
           if (typeof window !== 'undefined' && (window as any).addQlooResult) {
             const qlooResult = {
@@ -284,7 +281,7 @@ export function useChat({
               data: toolCall.data?.result || toolCall.data || {},
               success: toolCall.data?.success !== false
             };
-            
+
             console.log('[QLOO_DEBUG] Adding Qloo result to panel:', qlooResult);
             (window as any).addQlooResult(qlooResult);
           } else {
@@ -292,22 +289,21 @@ export function useChat({
           }
         }
 
-        const toolId = toolCall.id || Object.values(toolCallIdsRef.current).find(id => 
+        const toolId = toolCall.id || Object.values(toolCallIdsRef.current).find(id =>
           messageContentRef.current.includes(`{% tool_start '${toolCall.toolName}' '${id}' %}`)
         );
-        
+
         if (!toolId) {
-          console.error('[CHAT] No tool ID found for:', toolCall.toolName, 'Available IDs:', toolCallIdsRef.current);
+          console.error('[CAMPAIGN] No tool ID found for:', toolCall.toolName, 'Available IDs:', toolCallIdsRef.current);
           return;
         }
 
-        console.log('[CHAT] Completing tool:', toolCall.toolName, 'with ID:', toolId);
+        console.log('[CAMPAIGN] Completing tool:', toolCall.toolName, 'with ID:', toolId);
 
         // Create complete tool markdown
-        let completeToolMarkdown = `{% tool_complete '${toolCall.toolName}' '${toolId}' %}\n{% tool_description %}${
-          toolCall.toolDescription || toolCall.description || 'Completed'
-        }{% end_tool_description %}\n`;
-        
+        let completeToolMarkdown = `{% tool_complete '${toolCall.toolName}' '${toolId}' %}\n{% tool_description %}${toolCall.toolDescription || toolCall.description || 'Completed'
+          }{% end_tool_description %}\n`;
+
         if (toolCall.data) {
           completeToolMarkdown += (typeof toolCall.data === 'string' ? toolCall.data : JSON.stringify(toolCall.data, null, 2)) + '\n';
         }
@@ -315,26 +311,26 @@ export function useChat({
 
         // Use regex to find and replace the tool call by ID instead of exact pattern matching
         const toolStartRegex = new RegExp(`{% tool_start '${toolCall.toolName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}' '${toolId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}' %}[\\s\\S]*?{% endtool %}`, 'g');
-        
+
         const oldContent = messageContentRef.current;
         messageContentRef.current = messageContentRef.current.replace(toolStartRegex, completeToolMarkdown);
-        
+
         if (oldContent === messageContentRef.current) {
-          console.error('[CHAT] Tool replacement failed for:', toolCall.toolName, toolId);
-          console.log('[CHAT] Looking for pattern in content');
+          console.error('[CAMPAIGN] Tool replacement failed for:', toolCall.toolName, toolId);
+          console.log('[CAMPAIGN] Looking for pattern in content');
         } else {
-          console.log('[CHAT] Successfully replaced tool:', toolCall.toolName);
+          console.log('[CAMPAIGN] Successfully replaced tool:', toolCall.toolName);
         }
-        
+
         updateFullMessage()
       }
     };
   }, [onFlightSearchStart, updateFullMessage]);
 
   const submitMessage = useCallback(
-    async (message: string, flightData?: FlightSearchData, images?: string[]) => {
+    async (message: string, flightData?: FlightSearchData, images?: string[], documents?: DocumentAttachment[]) => {
       console.log('[SUBMIT] submitMessage called with:', message);
-      
+
       if (isLoading) {
         console.log('[SUBMIT] Already loading, returning');
         return;
@@ -351,21 +347,29 @@ export function useChat({
 
       console.log('[SUBMIT] Adding user message');
       console.log('[SUBMIT] Images being added to message:', images?.length || 0);
+      console.log('[SUBMIT] Documents being added to message:', documents?.length || 0);
+
+      // Store original message without document content for campaign history
       const messageObj = {
         role: 'user' as const,
         content: message,
         images: images,
+        documents: documents,
       };
-      console.log('[SUBMIT] Complete message object:', { ...messageObj, images: messageObj.images?.length || 0 });
+      console.log('[SUBMIT] Complete message object:', {
+        ...messageObj,
+        images: messageObj.images?.length || 0,
+        documents: messageObj.documents?.length || 0
+      });
       addMessage(messageObj)
       setLoading(true)
 
       try {
-        console.log('[SUBMIT] Getting chat worker');
+        console.log('[SUBMIT] Getting campaign worker');
         const worker = getChatWorker()
         if (!worker) {
-          console.error('[SUBMIT] Chat worker not available');
-          throw new Error('Chat worker not available')
+          console.error('[SUBMIT] Campaign worker not available');
+          throw new Error('Campaign worker not available')
         }
 
         const assistantMessage: Omit<ChatMessage, 'id' | 'createdAt'> = {
@@ -380,7 +384,7 @@ export function useChat({
           console.error('[SUBMIT] Failed to create assistant message');
           throw new Error('Failed to create assistant message')
         }
-        
+
         const currentMessages = useChatStore.getState().currentSession?.messages ?? []
         console.log('[SUBMIT] Current messages count:', currentMessages.length);
         console.log('[SUBMIT] Messages with images:', currentMessages.filter(m => m.images && m.images.length > 0).map(m => ({ role: m.role, content: m.content.substring(0, 50), imageCount: m.images?.length })));
@@ -398,23 +402,26 @@ export function useChat({
         const proxiedOnUpdate = Comlink.proxy(onUpdateRef.current);
         const proxiedOnToolCall = Comlink.proxy(onToolCallRef.current);
         const proxiedOnPanelUpdate = Comlink.proxy((panelType: string, panelData: any) => {
-          console.log('[CHAT] onPanelUpdate called with:', { panelType, panelData });
+          console.log('[CAMPAIGN] onPanelUpdate called with:', { panelType, panelData });
           try {
             // Convert markdown to HTML for text panels
             if (panelType === 'text-panel' && panelData.content) {
               const { marked } = require('marked');
-              console.log('[CHAT] Converting markdown to HTML for text panel');
+              console.log('[CAMPAIGN] Converting markdown to HTML for text panel');
               panelData.content = marked(panelData.content);
             }
-            
+
             const updateResult = updatePanelData(panelType, panelData, currentSessionId);
-            console.log('[CHAT] Panel update result:', updateResult);
+            console.log('[CAMPAIGN] Panel update result:', updateResult);
           } catch (error) {
-            console.error('[CHAT] Error in onPanelUpdate:', error);
+            console.error('[CAMPAIGN] Error in onPanelUpdate:', error);
           }
         });
 
         console.log('[SUBMIT] Calling worker.sendMessage with flight data:', flightData);
+        if (documents && documents.length > 0) {
+          console.log('[SUBMIT] Sending documents to backend for parsing:', documents.map(d => ({ name: d.name, type: d.type, size: d.size })));
+        }
         await worker.sendMessage(
           message,
           currentMessages,
@@ -425,18 +432,19 @@ export function useChat({
           currentSessionId,
           panelContext,
           images,
-          credentials // Pass Shopify credentials to worker
+          credentials, // Pass Shopify credentials to worker
+          documents // Pass documents to backend for parsing
         )
         console.log('[SUBMIT] Worker.sendMessage completed');
 
         if (document.visibilityState === 'hidden') {
           await showNotification('New message from GoFlyTo', {
-            body: 'Your chat response is ready.',
+            body: 'Your campaign response is ready.',
             icon: '/android-chrome-192x192.png',
           })
         }
       } catch (error) {
-        console.error('[SUBMIT] Chat error:', error)
+        console.error('[SUBMIT] Campaign error:', error)
         // Only show error if it's not an abort
         if ((error as any)?.name !== 'AbortError') {
           addMessage({
@@ -460,27 +468,27 @@ export function useChat({
   )
 
   const handleSubmit = useCallback(
-    async (e: React.FormEvent | undefined, message: string, flightData?: FlightSearchData, images?: string[]) => {
+    async (e: React.FormEvent | undefined, message: string, flightData?: FlightSearchData, images?: string[], documents?: DocumentAttachment[]) => {
       e?.preventDefault()
 
-      console.log('[CHAT] handleSubmit called, current notification permission:', permission)
+      console.log('[CAMPAIGN] handleSubmit called, current notification permission:', permission)
 
       // Always request notification permission on first interaction, regardless of current state
       const notificationRequestedKey = 'goflyto-notification-requested'
       const hasRequestedNotification = sessionStorage.getItem(notificationRequestedKey)
-      
+
       if (!hasRequestedNotification) {
-        console.log('[CHAT] First interaction - forcing notification permission request, current state:', permission)
+        console.log('[CAMPAIGN] First interaction - forcing notification permission request, current state:', permission)
         const result = await requestPermission()
-        console.log('[CHAT] Permission request result:', result)
+        console.log('[CAMPAIGN] Permission request result:', result)
         sessionStorage.setItem(notificationRequestedKey, 'true')
       } else {
-        console.log('[CHAT] Notification permission already requested in this session')
+        console.log('[CAMPAIGN] Notification permission already requested in this session')
       }
 
-      if ((!message || !message.trim()) && (!images || images.length === 0) || isLoading) return
-      
-      await submitMessage(message, flightData, images)
+      if ((!message || !message.trim()) && (!images || images.length === 0) && (!documents || documents.length === 0) || isLoading) return
+
+      await submitMessage(message, flightData, images, documents)
     },
     [
       isLoading,
@@ -489,7 +497,7 @@ export function useChat({
       submitMessage,
     ]
   )
-  
+
   const stop = useCallback(() => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort()

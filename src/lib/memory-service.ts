@@ -56,7 +56,7 @@ export class MemoryService {
   }
 
   /**
-   * Get all memories for sending with chat requests
+   * Get all memories for sending with campaign requests
    */
   async getMemoriesForChat(): Promise<MemoryDto[]> {
     try {
